@@ -37,9 +37,9 @@ def main():
                 reward         = game.apply_action(action)
                 log_step(state, action, reward, action.get("reasoning", ""))
                 print(f"Turn {game.turn:2d} | reward={reward:+.1f} | {action.get('reasoning','')}")
-                waiting = True   # pause so human can read the screen
+                pygame.time.wait(800)   # brief pause so screen is readable
             else:
-                # Human mode: just advance turn with empty action on SPACE
+                # Human mode: advance turn on SPACE
                 waiting = True
 
         game.render()
