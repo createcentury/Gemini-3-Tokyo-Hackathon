@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+target/
+venv/
+__pycache__/
+
+# Build outputs
+dist/
+build/
+*.exe
+*.wasm
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Package manager locks (keep for consistency)
+# Uncomment if you want to ignore:
+# package-lock.json
+# yarn.lock
+# Cargo.lock
