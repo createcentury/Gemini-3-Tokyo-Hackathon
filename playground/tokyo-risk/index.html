@@ -1663,22 +1663,27 @@
             const panel = document.getElementById('battle-log');
             if (!panel) return;
             logs.forEach(entry => {
-                // 📡 エージェント通信はcomm-panelのみ（🆘は両方に表示）
+                // 🎖️ 副司令官命令 → ACTIVE ORDER欄を更新するだけ（battle-logには出さない）
+                if (entry.includes('🎖️')) {
+                    const m = entry.match(/\]\s*(.+)$/);
+                    if (m) updateActiveOrderDisplay(m[1].trim());
+                    return;
+                }
+                // 📡 エージェント通信はcomm-panelのみ（🆘は両方に表示）、味方(🔵)のみ表示
                 if (entry.includes('📡') && !entry.includes('🆘')) {
-                    addCommMessage(entry);
+                    if (entry.startsWith('🔵')) addCommMessage(entry);
                     return;
                 }
 
                 const div = document.createElement('div');
                 div.textContent = entry;
                 div.classList.add('data-stream-entry');
-                if (entry.includes('💀') || entry.includes('🆘')) div.style.color = 'var(--neon-red)';
-                else if (entry.includes('⚔️'))  div.style.color = 'var(--neon-orange)';
-                else if (entry.includes('🎖️')) { div.style.color = 'var(--neon-orange)'; div.style.fontWeight = 'bold'; div.style.borderLeft = '3px solid var(--neon-orange)'; div.style.paddingLeft = '6px'; }
-                else if (entry.includes('占領')) div.style.color = 'var(--neon-green)';
+                if      (entry.includes('💀') || entry.includes('🆘')) div.style.color = 'var(--neon-red)';
+                else if (entry.includes('⚔️'))   div.style.color = 'var(--neon-orange)';
+                else if (entry.includes('占領'))  div.style.color = 'var(--neon-green)';
                 panel.appendChild(div);
 
-                // 🆘📡 はcomm-panelにも流す（緊急通知）
+                // 🆘 はcomm-panelにも流す（緊急通知）
                 if (entry.includes('🆘')) addCommMessage(entry);
             });
             panel.scrollTop = panel.scrollHeight;
