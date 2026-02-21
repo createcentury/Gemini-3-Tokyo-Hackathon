@@ -219,24 +219,24 @@ async def chat_with_ai_commander(request: dict):
     alive_player = sum(1 for a in game_state.agents.values() if a.owner == PLAYER and a.is_alive)
     alive_ai = sum(1 for a in game_state.agents.values() if a.owner == AI and a.is_alive)
 
-    # 各エージェントの詳細状況
+    # 各エージェントの詳細状況（current_wardはAgentに存在しないためtarget_wardで代替）
     player_agent_lines = []
     for aid, agent in sorted(game_state.agents.items()):
         if agent.owner == PLAYER:
-            ward = getattr(agent, "current_ward", "移動中")
+            ward = getattr(agent, "target_ward", None) or "移動中"
             hp = getattr(agent, "health", 100)
-            state = getattr(agent, "state", "idle")
+            st = getattr(agent, "state", "idle")
             alive_mark = "✓" if agent.is_alive else "✗"
-            player_agent_lines.append(f"  {alive_mark} {aid}: HP{hp} [{state}] @{ward}")
+            player_agent_lines.append(f"  {alive_mark} {aid}: HP{hp} [{st}] @{ward}")
 
     ai_agent_lines = []
     for aid, agent in sorted(game_state.agents.items()):
         if agent.owner == AI:
-            ward = getattr(agent, "current_ward", "移動中")
+            ward = getattr(agent, "target_ward", None) or "移動中"
             hp = getattr(agent, "health", 100)
-            state = getattr(agent, "state", "idle")
+            st = getattr(agent, "state", "idle")
             alive_mark = "✓" if agent.is_alive else "✗"
-            ai_agent_lines.append(f"  {alive_mark} {aid}: HP{hp} [{state}] @{ward}")
+            ai_agent_lines.append(f"  {alive_mark} {aid}: HP{hp} [{st}] @{ward}")
 
     player_agents_str = "\n".join(player_agent_lines) if player_agent_lines else "  なし"
     ai_agents_str = "\n".join(ai_agent_lines) if ai_agent_lines else "  なし"
@@ -297,7 +297,7 @@ async def chat_with_ai_commander(request: dict):
             if extracted != "なし":
                 issued_order = extracted
                 game_state.commander_order = extracted
-                game_state._log(f"📡 [副司令官命令] {extracted}")
+                game_state._log(f"🎖️ [副司令官命令] {extracted}")
 
         # タグを表示テキストから除去
         display_response = re.sub(r'\s*\[ORDER:.*?\]', '', raw_response).strip()
@@ -646,7 +646,7 @@ async def run_agent_ai_loop(session_id: str):
                     # Geminiエージェントは後で並列実行
                     gemini_targets.append((agent_id, agent))
                 else:
-                    # ルールベース: 最寄りの中立区 → 敵区 の順で優先
+                    # ルールベース: commander_orderに区名が含まれていれば優先
                     enemy_owner = AI if agent.owner == PLAYER else PLAYER
 
                     # チームメイトがすでに向かっている区を除外（重複回避）
@@ -655,6 +655,22 @@ async def run_agent_ai_loop(session_id: str):
                         for aid2, a in state.agents.items()
                         if a.owner == agent.owner and aid2 != agent_id and a.target_ward
                     }
+
+                    # commander_orderから区名を抽出（プレイヤー側のみ）
+                    order_ward = None
+                    if agent.owner == PLAYER and state.commander_order:
+                        for w in WARDS:
+                            if w in state.commander_order:
+                                order_ward = w
+                                break
+
+                    if order_ward and order_ward not in teammate_targets:
+                        # 命令優先: 指定区へ向かう
+                        lat, lng = WARD_LATLNG[order_ward]
+                        agent.set_destination(lat, lng, order_ward)
+                        agent.thought = f"📡 命令: {order_ward}へ"
+                        agent.last_action_time = time.time()
+                        continue
 
                     neutral_wards = [
                         w for w in WARDS
@@ -882,4 +898,6 @@ SOSは緊迫した声で読んでください。
 
 @app.get("/", response_class=HTMLResponse)
 def serve_frontend():
-    return (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
+    html = (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
+    gmaps_key = os.getenv("GOOGLE_MAPS_API_KEY", "")
+    return html.replace("__GMAPS_API_KEY__", gmaps_key)

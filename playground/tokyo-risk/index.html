@@ -547,6 +547,28 @@
             min-height: 1em;
         }
 
+        /* 発令中命令表示 */
+        #active-order-display {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-green);
+            border-radius: 2px;
+            padding: 8px 10px;
+            min-height: 2.4em;
+            display: flex;
+            align-items: center;
+        }
+        #active-order-text {
+            font-size: 0.75rem;
+            font-family: 'Courier New', monospace;
+            color: var(--text-dim);
+            line-height: 1.4;
+            transition: color 0.3s;
+        }
+        #active-order-text.has-order {
+            color: var(--neon-orange);
+            text-shadow: 0 0 8px rgba(255, 170, 0, 0.5);
+        }
+
         /* ヘッダー スコアボード inline color override 修正 */
         #player-agents { color: var(--neon-cyan) !important; text-shadow: var(--glow-cyan); }
         #ai-agents     { color: var(--neon-red)  !important; text-shadow: var(--glow-red);  }
@@ -609,47 +631,99 @@
 
             <!-- クイックスタート: 戦略選択パネル -->
             <div id="scenario-panel" style="margin-bottom:10px;">
-                <div style="font-size:0.6rem; color:rgba(0,255,65,0.4); letter-spacing:0.16em; margin-bottom:7px; border-bottom:1px solid rgba(0,255,65,0.1); padding-bottom:4px;">
+                <div style="font-size:0.6rem;color:rgba(0,255,65,0.4);letter-spacing:0.16em;margin-bottom:6px;border-bottom:1px solid rgba(0,255,65,0.1);padding-bottom:4px;">
                     // DEPLOY STRATEGY — クリックで即開始
                 </div>
+
+                <!-- アーキテクチャ概要（研究者向け） -->
+                <div style="font-size:0.58rem;color:rgba(0,229,255,0.38);letter-spacing:0.04em;margin-bottom:8px;padding:4px 8px;border:1px solid rgba(0,229,255,0.1);background:rgba(0,229,255,0.02);line-height:1.75;">
+                    <span style="color:rgba(0,229,255,0.65);">Gemini FC</span> 001–003 &nbsp;/&nbsp; <span style="color:rgba(255,255,255,0.22);">Rule-based</span> 004–010<br>
+                    Variables&thinsp;:&thinsp;<span style="color:rgba(0,229,255,0.5);">sys_prompt</span>&thinsp;×10&thinsp;+&thinsp;<span style="color:rgba(0,229,255,0.5);">tool_loadout</span>&thinsp;×10
+                </div>
+
                 <!-- ASSAULT -->
-                <div onclick="quickStart('rush')" style="cursor:pointer; border:1px solid rgba(255,0,85,0.4); background:rgba(255,0,85,0.04); padding:8px 10px; margin-bottom:4px; transition:all 0.15s;"
-                     onmouseover="this.style.background='rgba(255,0,85,0.14)';this.style.borderColor='#ff0055'"
-                     onmouseout="this.style.background='rgba(255,0,85,0.04)';this.style.borderColor='rgba(255,0,85,0.4)'">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+                <div onclick="quickStart('rush')" style="cursor:pointer;border:1px solid rgba(255,0,85,0.35);background:rgba(255,0,85,0.04);padding:8px 10px;margin-bottom:4px;transition:all 0.15s;"
+                     onmouseover="this.style.background='rgba(255,0,85,0.11)';this.style.borderColor='#ff0055'"
+                     onmouseout="this.style.background='rgba(255,0,85,0.04)';this.style.borderColor='rgba(255,0,85,0.35)'">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
                         <span style="color:#ff0055;font-size:0.78rem;letter-spacing:0.1em;font-weight:bold;">⚔ ASSAULT</span>
-                        <span style="color:rgba(255,0,85,0.5);font-size:0.62rem;">▶ START</span>
+                        <span style="color:rgba(255,0,85,0.45);font-size:0.6rem;">▶ START</span>
                     </div>
-                    <div style="color:rgba(255,160,160,0.65);font-size:0.66rem;margin-bottom:2px;">猛攻型: 敵区を最速で強襲・制圧</div>
-                    <div style="color:rgba(255,0,85,0.35);font-size:0.6rem;font-family:'Courier New';">rapid_move×3 + attack_boost×1 = 85G</div>
+                    <div style="color:rgba(255,100,100,0.5);font-size:0.61rem;font-style:italic;border-left:2px solid rgba(255,0,85,0.4);padding-left:5px;margin-bottom:5px;">
+                        「敵が守っている区こそ、真っ先に奪え」
+                    </div>
+                    <div style="display:flex;align-items:center;gap:2px;margin-bottom:4px;" title="各エージェントのtool配分">
+                        <span style="font-size:0.5rem;color:rgba(0,229,255,0.45);margin-right:2px;white-space:nowrap;">FC:</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="001 · Gemini FC · rapid_move">🏃</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="002 · Gemini FC · rapid_move">🏃</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="003 · Gemini FC · rapid_move">🏃</span>
+                        <span style="font-size:0.5rem;color:rgba(255,255,255,0.15);margin:0 2px;">|</span>
+                        <span style="font-size:0.5rem;color:rgba(255,255,255,0.2);margin-right:2px;white-space:nowrap;">RB:</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.03);font-size:8px;" title="004 · Rule-based · attack_boost">⚔</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.08);font-size:7px;color:rgba(255,255,255,0.2);" title="005–010 · Rule-based · (no tool)">·</span>
+                        <span style="font-size:0.5rem;color:rgba(255,255,255,0.18);">×6</span>
+                    </div>
+                    <div style="color:rgba(255,0,85,0.28);font-size:0.57rem;font-family:'Courier New';">prompt=ATTACK &thinsp;·&thinsp; budget=85G &thinsp;·&thinsp; mode=RUSH</div>
                 </div>
+
                 <!-- SPREAD -->
-                <div onclick="quickStart('spread')" style="cursor:pointer; border:1px solid rgba(0,255,65,0.4); background:rgba(0,255,65,0.04); padding:8px 10px; margin-bottom:4px; transition:all 0.15s;"
-                     onmouseover="this.style.background='rgba(0,255,65,0.14)';this.style.borderColor='#00ff41'"
-                     onmouseout="this.style.background='rgba(0,255,65,0.04)';this.style.borderColor='rgba(0,255,65,0.4)'">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+                <div onclick="quickStart('spread')" style="cursor:pointer;border:1px solid rgba(0,255,65,0.35);background:rgba(0,255,65,0.04);padding:8px 10px;margin-bottom:4px;transition:all 0.15s;"
+                     onmouseover="this.style.background='rgba(0,255,65,0.11)';this.style.borderColor='#00ff41'"
+                     onmouseout="this.style.background='rgba(0,255,65,0.04)';this.style.borderColor='rgba(0,255,65,0.35)'">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
                         <span style="color:#00ff41;font-size:0.78rem;letter-spacing:0.1em;font-weight:bold;">◈ SPREAD</span>
-                        <span style="color:rgba(0,255,65,0.5);font-size:0.62rem;">▶ START</span>
+                        <span style="color:rgba(0,255,65,0.45);font-size:0.6rem;">▶ START</span>
                     </div>
-                    <div style="color:rgba(160,255,160,0.65);font-size:0.66rem;margin-bottom:2px;">分散型: 全区を素早く塗りつぶせ</div>
-                    <div style="color:rgba(0,255,65,0.35);font-size:0.6rem;font-family:'Courier New';">rapid_move×5 = 100G</div>
+                    <div style="color:rgba(100,255,100,0.5);font-size:0.61rem;font-style:italic;border-left:2px solid rgba(0,255,65,0.4);padding-left:5px;margin-bottom:5px;">
+                        「地図を埋め尽くせ、空白地帯を残すな」
+                    </div>
+                    <div style="display:flex;align-items:center;gap:2px;margin-bottom:4px;" title="各エージェントのtool配分">
+                        <span style="font-size:0.5rem;color:rgba(0,229,255,0.45);margin-right:2px;white-space:nowrap;">FC:</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="001 · Gemini FC · rapid_move">🏃</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="002 · Gemini FC · rapid_move">🏃</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="003 · Gemini FC · rapid_move">🏃</span>
+                        <span style="font-size:0.5rem;color:rgba(255,255,255,0.15);margin:0 2px;">|</span>
+                        <span style="font-size:0.5rem;color:rgba(255,255,255,0.2);margin-right:2px;white-space:nowrap;">RB:</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.03);font-size:8px;" title="004 · Rule-based · rapid_move">🏃</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.03);font-size:8px;" title="005 · Rule-based · rapid_move">🏃</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.08);font-size:7px;color:rgba(255,255,255,0.2);" title="006–010 · Rule-based · (no tool)">·</span>
+                        <span style="font-size:0.5rem;color:rgba(255,255,255,0.18);">×5</span>
+                    </div>
+                    <div style="color:rgba(0,255,65,0.28);font-size:0.57rem;font-family:'Courier New';">prompt=SPREAD &thinsp;·&thinsp; budget=100G &thinsp;·&thinsp; mode=EXPAND</div>
                 </div>
+
                 <!-- FORTIFY -->
-                <div onclick="quickStart('defend')" style="cursor:pointer; border:1px solid rgba(0,229,255,0.4); background:rgba(0,229,255,0.04); padding:8px 10px; margin-bottom:4px; transition:all 0.15s;"
-                     onmouseover="this.style.background='rgba(0,229,255,0.14)';this.style.borderColor='#00e5ff'"
-                     onmouseout="this.style.background='rgba(0,229,255,0.04)';this.style.borderColor='rgba(0,229,255,0.4)'">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+                <div onclick="quickStart('defend')" style="cursor:pointer;border:1px solid rgba(0,229,255,0.35);background:rgba(0,229,255,0.04);padding:8px 10px;margin-bottom:6px;transition:all 0.15s;"
+                     onmouseover="this.style.background='rgba(0,229,255,0.11)';this.style.borderColor='#00e5ff'"
+                     onmouseout="this.style.background='rgba(0,229,255,0.04)';this.style.borderColor='rgba(0,229,255,0.35)'">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
                         <span style="color:#00e5ff;font-size:0.78rem;letter-spacing:0.1em;font-weight:bold;">🛡 FORTIFY</span>
-                        <span style="color:rgba(0,229,255,0.5);font-size:0.62rem;">▶ START</span>
+                        <span style="color:rgba(0,229,255,0.45);font-size:0.6rem;">▶ START</span>
                     </div>
-                    <div style="color:rgba(160,230,255,0.65);font-size:0.66rem;margin-bottom:2px;">堅守型: 守りながら確実に拡大</div>
-                    <div style="color:rgba(0,229,255,0.35);font-size:0.6rem;font-family:'Courier New';">shield×3 + medkit×2 = 80G</div>
+                    <div style="color:rgba(100,200,255,0.5);font-size:0.61rem;font-style:italic;border-left:2px solid rgba(0,229,255,0.4);padding-left:5px;margin-bottom:5px;">
+                        「一歩一歩、確実に版図を広げよ」
+                    </div>
+                    <div style="display:flex;align-items:center;gap:2px;margin-bottom:4px;" title="各エージェントのtool配分">
+                        <span style="font-size:0.5rem;color:rgba(0,229,255,0.45);margin-right:2px;white-space:nowrap;">FC:</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="001 · Gemini FC · shield">🛡</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="002 · Gemini FC · shield">🛡</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="003 · Gemini FC · shield">🛡</span>
+                        <span style="font-size:0.5rem;color:rgba(255,255,255,0.15);margin:0 2px;">|</span>
+                        <span style="font-size:0.5rem;color:rgba(255,255,255,0.2);margin-right:2px;white-space:nowrap;">RB:</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.03);font-size:8px;" title="004 · Rule-based · medkit">💊</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.03);font-size:8px;" title="005 · Rule-based · medkit">💊</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.08);font-size:7px;color:rgba(255,255,255,0.2);" title="006–010 · Rule-based · (no tool)">·</span>
+                        <span style="font-size:0.5rem;color:rgba(255,255,255,0.18);">×5</span>
+                    </div>
+                    <div style="color:rgba(0,229,255,0.28);font-size:0.57rem;font-family:'Courier New';">prompt=DEFEND &thinsp;·&thinsp; budget=80G &thinsp;·&thinsp; mode=HOLD</div>
                 </div>
-                <!-- Custom setup -->
-                <button onclick="startGame()" style="width:100%;padding:5px;cursor:pointer;background:transparent;border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.3);font-family:'Courier New',monospace;font-size:0.65rem;letter-spacing:0.1em;transition:all 0.15s;"
-                        onmouseover="this.style.borderColor='rgba(255,255,255,0.35)';this.style.color='rgba(255,255,255,0.55)'"
-                        onmouseout="this.style.borderColor='rgba(255,255,255,0.12)';this.style.color='rgba(255,255,255,0.3)'">
-                    [ CUSTOM SETUP → ]
+
+                <!-- Custom Setup -->
+                <button onclick="startGame()" style="width:100%;padding:6px 8px;cursor:pointer;background:transparent;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.28);font-family:'Courier New',monospace;font-size:0.64rem;letter-spacing:0.08em;transition:all 0.15s;text-align:left;line-height:1.5;"
+                        onmouseover="this.style.borderColor='rgba(255,255,255,0.3)';this.style.color='rgba(255,255,255,0.5)'"
+                        onmouseout="this.style.borderColor='rgba(255,255,255,0.1)';this.style.color='rgba(255,255,255,0.28)'">
+                    [ CUSTOM SETUP ↗ ]<br>
+                    <span style="font-size:0.54rem;color:rgba(255,255,255,0.16);letter-spacing:0.03em;">sys_prompt/agent &thinsp;·&thinsp; tool/agent &thinsp;·&thinsp; per-unit override</span>
                 </button>
             </div>
             <button id="btn-start" style="display:none;">[ GAME START ]</button>
@@ -658,19 +732,13 @@
                 選択中: <span id="selected-ward-name"></span>
             </div>
 
-            <!-- 部隊命令 -->
+            <!-- 発令中命令（AI ADVISORが自動設定） -->
             <div class="panel-section">
-                <h3>// COMMAND</h3>
-                <input type="text" id="commander-order-input"
-                    class="cyber-input"
-                    placeholder="> 部隊命令（例: 渋谷区を優先占領せよ）..."
-                    disabled
-                />
-                <button id="btn-send-order" class="cyber-btn red full" disabled
-                    onclick="sendCommanderOrder()">
-                    [ SEND ORDER ]
-                </button>
-                <div id="voice-status" style="font-size:0.7rem; color:#aaa; min-height:1em; margin-top:4px;"></div>
+                <h3>// ACTIVE ORDER</h3>
+                <div id="active-order-display">
+                    <span id="active-order-text">— 命令なし —</span>
+                </div>
+                <div id="voice-status" style="font-size:0.7rem; color:var(--text-dim); min-height:1em; margin-top:4px;"></div>
             </div>
 
             <!-- AI副官 -->
@@ -695,6 +763,7 @@
                 />
                 <div class="btn-row">
                     <button id="btn-send-chat" class="cyber-btn cyan" disabled>SEND</button>
+                    <button id="btn-voice-chat" class="cyber-btn orange" disabled title="音声で副司令官に話しかける">🎤 VOICE</button>
                 </div>
             </div>
 
@@ -1358,10 +1427,9 @@
 
                 document.getElementById('ai-chat-input').disabled = false;
                 document.getElementById('btn-send-chat').disabled = false;
+                document.getElementById('btn-voice-chat').disabled = false;
                 document.getElementById('btn-analysis').disabled = false;
                 document.getElementById('ai-chat-history').style.display = 'block';
-                document.getElementById('commander-order-input').disabled = false;
-                document.getElementById('btn-send-order').disabled = false;
                 document.getElementById('mic-fab').style.display = 'block';
                 autoStartLiveSession();
 
@@ -1446,12 +1514,9 @@
                 // AIコマンダーチャット有効化
                 document.getElementById('ai-chat-input').disabled = false;
                 document.getElementById('btn-send-chat').disabled = false;
+                document.getElementById('btn-voice-chat').disabled = false;
                 document.getElementById('btn-analysis').disabled = false;
                 document.getElementById('ai-chat-history').style.display = 'block';
-
-                // 部隊命令UI有効化
-                document.getElementById('commander-order-input').disabled = false;
-                document.getElementById('btn-send-order').disabled = false;
 
                 // Live API 自動接続 + マイクFAB表示
                 document.getElementById('mic-fab').style.display = 'block';
@@ -1563,6 +1628,7 @@
                 div.classList.add('data-stream-entry');
                 if (entry.includes('💀') || entry.includes('🆘')) div.style.color = 'var(--neon-red)';
                 else if (entry.includes('⚔️'))  div.style.color = 'var(--neon-orange)';
+                else if (entry.includes('🎖️')) { div.style.color = 'var(--neon-orange)'; div.style.fontWeight = 'bold'; div.style.borderLeft = '3px solid var(--neon-orange)'; div.style.paddingLeft = '6px'; }
                 else if (entry.includes('占領')) div.style.color = 'var(--neon-green)';
                 panel.appendChild(div);
 
@@ -1688,22 +1754,16 @@
             startMatrixRain(isWin);
         }
 
-        // コマンダー命令送信
-        async function sendCommanderOrder() {
-            const input = document.getElementById('commander-order-input');
-            const order = input.value.trim();
-            if (!order || !sessionId) return;
-
-            try {
-                await fetch(`/game/commander-order/${sessionId}`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ order })
-                });
-                log(`📡 命令送信: "${order}"`);
-                input.value = '';
-            } catch (e) {
-                log(`❌ 命令送信エラー: ${e.message}`);
+        // 発令中命令表示を更新
+        function updateActiveOrderDisplay(order) {
+            const el = document.getElementById('active-order-text');
+            if (!el) return;
+            if (order) {
+                el.textContent = order;
+                el.classList.add('has-order');
+            } else {
+                el.textContent = '— 命令なし —';
+                el.classList.remove('has-order');
             }
         }
 
@@ -2514,12 +2574,9 @@
 
         // AIコマンダーチャット送信
         async function sendAIChat(message) {
-            if (!message || !message.trim()) {
-                return;
-            }
-
-            // ユーザーメッセージ表示
+            if (!message || !message.trim()) return;
             displayChatMessage('user', message);
+            document.getElementById('ai-chat-input').value = '';
 
             try {
                 const response = await fetch('/ai/chat', {
@@ -2527,7 +2584,7 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         session_id: sessionId,
-                        user_message: message
+                        message: message
                     })
                 });
 
@@ -2537,12 +2594,83 @@
                     displayChatMessage('ai', data.ai_response);
                 }
 
+                // STEP C: 命令が抽出された場合は通知表示
+                if (data.issued_order) {
+                    showOrderNotification(data.issued_order);
+                }
+
             } catch (error) {
                 log(`❌ AIチャットエラー: ${error.message}`);
             }
+        }
 
-            // 入力欄クリア
-            document.getElementById('ai-chat-input').value = '';
+        // ORDER発令通知
+        function showOrderNotification(order) {
+            // ACTIVE ORDER表示を更新
+            updateActiveOrderDisplay(order);
+            // バトルログに強調表示
+            const panel = document.getElementById('battle-log');
+            if (panel) {
+                const div = document.createElement('div');
+                div.textContent = `📡 ═══ [副司令官命令発令] ${order} ═══`;
+                div.classList.add('data-stream-entry');
+                div.style.color = 'var(--neon-orange)';
+                div.style.fontWeight = 'bold';
+                div.style.borderLeft = '3px solid var(--neon-orange)';
+                div.style.paddingLeft = '6px';
+                div.style.marginTop = '4px';
+                panel.appendChild(div);
+                panel.scrollTop = panel.scrollHeight;
+            }
+            // 通信パネルにも表示
+            addCommMessage(`📡 [副司令官]: ${order}`);
+            // ヘッダーをオレンジにフラッシュ
+            const header = document.querySelector('#game-controls h2');
+            if (header) {
+                header.style.color = 'var(--neon-orange)';
+                header.style.textShadow = '0 0 12px var(--neon-orange)';
+                setTimeout(() => { header.style.color = ''; header.style.textShadow = ''; }, 2500);
+            }
+        }
+
+        // Web Speech API による副司令官への音声入力
+        let chatRecognition = null;
+
+        function startVoiceChat() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const btn = document.getElementById('btn-voice-chat');
+            if (!SpeechRecognition) {
+                log('❌ この環境では音声入力非対応');
+                return;
+            }
+            // 録音中なら停止
+            if (chatRecognition) {
+                chatRecognition.stop();
+                chatRecognition = null;
+                if (btn) { btn.textContent = '🎤 VOICE'; btn.style.boxShadow = ''; }
+                return;
+            }
+            chatRecognition = new SpeechRecognition();
+            chatRecognition.lang = 'ja-JP';
+            chatRecognition.continuous = false;
+            chatRecognition.interimResults = false;
+            if (btn) {
+                btn.textContent = '⏹ REC...';
+                btn.style.boxShadow = '0 0 16px var(--neon-red)';
+            }
+            chatRecognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('ai-chat-input').value = transcript;
+                sendAIChat(transcript);
+            };
+            chatRecognition.onerror = (event) => {
+                log(`❌ 音声認識エラー: ${event.error}`);
+            };
+            chatRecognition.onend = () => {
+                chatRecognition = null;
+                if (btn) { btn.textContent = '🎤 VOICE'; btn.style.boxShadow = ''; }
+            };
+            chatRecognition.start();
         }
 
         // チャットメッセージ表示
@@ -2598,6 +2726,8 @@
         btnStart.addEventListener('click', () => { addFlashEffect(btnStart); startGame(); });
 
         // AIコマンダーチャット
+        document.getElementById('btn-voice-chat').addEventListener('click', startVoiceChat);
+
         document.getElementById('btn-send-chat').addEventListener('click', () => {
             const message = document.getElementById('ai-chat-input').value;
             sendAIChat(message);
@@ -2611,11 +2741,6 @@
         });
 
         document.getElementById('btn-analysis').addEventListener('click', requestAnalysis);
-
-        // 部隊命令 Enter キー送信
-        document.getElementById('commander-order-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendCommanderOrder();
-        });
 
         // ============================================================
         // Gemini Live API 音声コマンド
