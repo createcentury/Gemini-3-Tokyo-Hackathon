@@ -47,8 +47,10 @@ class StartRequest(BaseModel):
 
 class AttackRequest(BaseModel):
     session_id: str
-    from_ward: str
-    to_ward: str
+    from_ward: str = None
+    to_ward: str = None
+    attacker: str = None  # 互換性のため
+    defender: str = None  # 互換性のため
 
 class ReinforceRequest(BaseModel):
     session_id: str
@@ -87,7 +89,14 @@ def attack(req: AttackRequest):
     if not state:
         raise HTTPException(404, "セッションが見つかりません")
 
-    result = state.resolve_attack(req.from_ward, req.to_ward, PLAYER)
+    # from_ward/to_ward または attacker/defender のどちらでも受け付ける
+    from_ward = getattr(req, 'from_ward', None) or getattr(req, 'attacker', None)
+    to_ward = getattr(req, 'to_ward', None) or getattr(req, 'defender', None)
+
+    if not from_ward or not to_ward:
+        raise HTTPException(400, "攻撃元と攻撃先を指定してください")
+
+    result = state.resolve_attack(from_ward, to_ward, PLAYER)
     if not result["success"]:
         raise HTTPException(400, result["reason"])
 
@@ -156,6 +165,33 @@ def get_map_data():
         "adjacency": ADJACENCY,
         "stats": WARD_STATS,
         "routes": ROUTE_TIMES,
+    }
+
+
+@app.get("/route/{from_ward}/{to_ward}")
+def get_route(from_ward: str, to_ward: str):
+    """2区間のルート情報を返す"""
+    # キーは辞書順でソート済み
+    key = "|".join(sorted([from_ward, to_ward]))
+    route_data = ROUTE_TIMES.get(key)
+
+    if not route_data:
+        # ルートデータがない場合は基本情報のみ
+        return {
+            "from": from_ward,
+            "to": to_ward,
+            "has_data": False,
+            "estimated_minutes": 15
+        }
+
+    return {
+        "from": from_ward,
+        "to": to_ward,
+        "has_data": True,
+        "seconds": route_data.get("seconds", 900),
+        "minutes": route_data.get("seconds", 900) // 60,
+        "movement_cost": route_data.get("movement_cost", 3),
+        "polyline": route_data.get("polyline", None)
     }
 
 
