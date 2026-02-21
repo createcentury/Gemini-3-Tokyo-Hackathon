@@ -193,9 +193,9 @@
         #comm-panel {
             position: fixed;
             right: 12px;
+            top: 70px;   /* JSで header 直下に調整 */
             bottom: 12px;
             width: 280px;
-            max-height: 340px;
             z-index: 2000;
             display: flex;
             flex-direction: column;
@@ -214,10 +214,12 @@
             user-select: none;
         }
         #comm-messages {
+            flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
-            overflow: hidden;
+            overflow-y: auto;
+            overflow-x: hidden;
             gap: 3px;
             padding: 6px 0 0 0;
         }
@@ -629,93 +631,97 @@
         <div class="game-controls neon-pulse">
             <h2 class="glitch-text" data-text="// TACTICAL CONTROL">&gt; TACTICAL CONTROL</h2>
 
-            <!-- クイックスタート: 戦略選択パネル -->
+            <!-- クイックスタート: マルチエージェントアーキテクチャ選択 -->
             <div id="scenario-panel" style="margin-bottom:10px;">
                 <div style="font-size:0.6rem;color:rgba(0,255,65,0.4);letter-spacing:0.16em;margin-bottom:6px;border-bottom:1px solid rgba(0,255,65,0.1);padding-bottom:4px;">
-                    // DEPLOY STRATEGY — クリックで即開始
+                    // AGENT ARCHITECTURE — クリックで即開始
                 </div>
 
-                <!-- アーキテクチャ概要（研究者向け） -->
+                <!-- アーキテクチャ概要 -->
                 <div style="font-size:0.58rem;color:rgba(0,229,255,0.38);letter-spacing:0.04em;margin-bottom:8px;padding:4px 8px;border:1px solid rgba(0,229,255,0.1);background:rgba(0,229,255,0.02);line-height:1.75;">
                     <span style="color:rgba(0,229,255,0.65);">Gemini FC</span> 001–003 &nbsp;/&nbsp; <span style="color:rgba(255,255,255,0.22);">Rule-based</span> 004–010<br>
-                    Variables&thinsp;:&thinsp;<span style="color:rgba(0,229,255,0.5);">sys_prompt</span>&thinsp;×10&thinsp;+&thinsp;<span style="color:rgba(0,229,255,0.5);">tool_loadout</span>&thinsp;×10
+                    Variables&thinsp;:&thinsp;<span style="color:rgba(0,229,255,0.5);">sys_prompt[i]</span>&thinsp;×10&thinsp;+&thinsp;<span style="color:rgba(0,229,255,0.5);">tool_loadout[i]</span>&thinsp;×10
                 </div>
 
-                <!-- ASSAULT -->
-                <div onclick="quickStart('rush')" style="cursor:pointer;border:1px solid rgba(255,0,85,0.35);background:rgba(255,0,85,0.04);padding:8px 10px;margin-bottom:4px;transition:all 0.15s;"
-                     onmouseover="this.style.background='rgba(255,0,85,0.11)';this.style.borderColor='#ff0055'"
-                     onmouseout="this.style.background='rgba(255,0,85,0.04)';this.style.borderColor='rgba(255,0,85,0.35)'">
+                <!-- ⋯ FLAT  独立型 -->
+                <div onclick="quickStart('flat')" style="cursor:pointer;border:1px solid rgba(255,85,102,0.35);background:rgba(255,85,102,0.04);padding:8px 10px;margin-bottom:4px;transition:all 0.15s;"
+                     onmouseover="this.style.background='rgba(255,85,102,0.11)';this.style.borderColor='#ff5566'"
+                     onmouseout="this.style.background='rgba(255,85,102,0.04)';this.style.borderColor='rgba(255,85,102,0.35)'">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
-                        <span style="color:#ff0055;font-size:0.78rem;letter-spacing:0.1em;font-weight:bold;">⚔ ASSAULT</span>
-                        <span style="color:rgba(255,0,85,0.45);font-size:0.6rem;">▶ START</span>
+                        <span style="color:#ff5566;font-size:0.78rem;letter-spacing:0.1em;font-weight:bold;">⋯ FLAT  独立型</span>
+                        <span style="color:rgba(255,85,102,0.35);font-size:0.6rem;">▶ START</span>
                     </div>
-                    <div style="color:rgba(255,100,100,0.5);font-size:0.61rem;font-style:italic;border-left:2px solid rgba(255,0,85,0.4);padding-left:5px;margin-bottom:5px;">
-                        「敵が守っている区こそ、真っ先に奪え」
+                    <div style="color:rgba(255,85,102,0.5);font-size:0.61rem;font-style:italic;border-left:2px solid rgba(255,85,102,0.35);padding-left:5px;margin-bottom:5px;">
+                        「自分の判断で動け、誰も頼るな」
                     </div>
-                    <div style="display:flex;align-items:center;gap:2px;margin-bottom:4px;" title="各エージェントのtool配分">
+                    <div style="display:flex;align-items:center;gap:2px;margin-bottom:4px;">
                         <span style="font-size:0.5rem;color:rgba(0,229,255,0.45);margin-right:2px;white-space:nowrap;">FC:</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="001 · Gemini FC · rapid_move">🏃</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="002 · Gemini FC · rapid_move">🏃</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="003 · Gemini FC · rapid_move">🏃</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="001 · Gemini FC · rapid_move · 独立">🏃</span><span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="002 · Gemini FC · rapid_move · 独立">🏃</span><span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="003 · Gemini FC · rapid_move · 独立">🏃</span>
                         <span style="font-size:0.5rem;color:rgba(255,255,255,0.15);margin:0 2px;">|</span>
                         <span style="font-size:0.5rem;color:rgba(255,255,255,0.2);margin-right:2px;white-space:nowrap;">RB:</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.03);font-size:8px;" title="004 · Rule-based · attack_boost">⚔</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.08);font-size:7px;color:rgba(255,255,255,0.2);" title="005–010 · Rule-based · (no tool)">·</span>
-                        <span style="font-size:0.5rem;color:rgba(255,255,255,0.18);">×6</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.03);font-size:8px;" title="004 · Rule-based · attack_boost">⚔</span><span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.08);font-size:7px;color:rgba(255,255,255,0.2);" title="005–010 · Rule-based · (no tool)">·</span><span style="font-size:0.5rem;color:rgba(255,255,255,0.18);">×6</span>
                     </div>
-                    <div style="color:rgba(255,0,85,0.28);font-size:0.57rem;font-family:'Courier New';">prompt=ATTACK &thinsp;·&thinsp; budget=85G &thinsp;·&thinsp; mode=RUSH</div>
+                    <div style="color:rgba(255,85,102,0.35);font-size:0.57rem;font-family:'Courier New';opacity:0.7;">arch=FLAT &thinsp;·&thinsp; coordination=NONE &thinsp;·&thinsp; prompt=IDENTICAL</div>
                 </div>
-
-                <!-- SPREAD -->
-                <div onclick="quickStart('spread')" style="cursor:pointer;border:1px solid rgba(0,255,65,0.35);background:rgba(0,255,65,0.04);padding:8px 10px;margin-bottom:4px;transition:all 0.15s;"
+                <!-- ▲ HIERARCHY  指揮統制型 -->
+                <div onclick="quickStart('hierarchical')" style="cursor:pointer;border:1px solid rgba(255,170,0,0.35);background:rgba(255,170,0,0.04);padding:8px 10px;margin-bottom:4px;transition:all 0.15s;"
+                     onmouseover="this.style.background='rgba(255,170,0,0.11)';this.style.borderColor='#ffaa00'"
+                     onmouseout="this.style.background='rgba(255,170,0,0.04)';this.style.borderColor='rgba(255,170,0,0.35)'">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
+                        <span style="color:#ffaa00;font-size:0.78rem;letter-spacing:0.1em;font-weight:bold;">▲ HIERARCHY  指揮統制型</span>
+                        <span style="color:rgba(255,170,0,0.35);font-size:0.6rem;">▶ START</span>
+                    </div>
+                    <div style="color:rgba(255,170,0,0.5);font-size:0.61rem;font-style:italic;border-left:2px solid rgba(255,170,0,0.35);padding-left:5px;margin-bottom:5px;">
+                        「001がリーダー、命令をbroadcastで下位へ」
+                    </div>
+                    <div style="display:flex;align-items:center;gap:2px;margin-bottom:4px;">
+                        <span style="font-size:0.5rem;color:rgba(0,229,255,0.45);margin-right:2px;white-space:nowrap;">FC:</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(255,170,0,0.1);font-size:8px;" title="001 · Gemini FC · comm_boost · リーダー">👑</span><span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="002 · Gemini FC · rapid_move · フォロワー">🏃</span><span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="003 · Gemini FC · rapid_move · フォロワー">🏃</span>
+                        <span style="font-size:0.5rem;color:rgba(255,255,255,0.15);margin:0 2px;">|</span>
+                        <span style="font-size:0.5rem;color:rgba(255,255,255,0.2);margin-right:2px;white-space:nowrap;">RB:</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.08);font-size:7px;color:rgba(255,255,255,0.2);" title="004–010 · Rule-based">·</span><span style="font-size:0.5rem;color:rgba(255,255,255,0.18);">×7</span>
+                    </div>
+                    <div style="color:rgba(255,170,0,0.35);font-size:0.57rem;font-family:'Courier New';opacity:0.7;">arch=HIERARCHICAL &thinsp;·&thinsp; coordination=TOP-DOWN &thinsp;·&thinsp; roles=1+2</div>
+                </div>
+                <!-- ◎ SQUAD  役割分担型 -->
+                <div onclick="quickStart('squad')" style="cursor:pointer;border:1px solid rgba(0,255,65,0.35);background:rgba(0,255,65,0.04);padding:8px 10px;margin-bottom:4px;transition:all 0.15s;"
                      onmouseover="this.style.background='rgba(0,255,65,0.11)';this.style.borderColor='#00ff41'"
                      onmouseout="this.style.background='rgba(0,255,65,0.04)';this.style.borderColor='rgba(0,255,65,0.35)'">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
-                        <span style="color:#00ff41;font-size:0.78rem;letter-spacing:0.1em;font-weight:bold;">◈ SPREAD</span>
-                        <span style="color:rgba(0,255,65,0.45);font-size:0.6rem;">▶ START</span>
+                        <span style="color:#00ff41;font-size:0.78rem;letter-spacing:0.1em;font-weight:bold;">◎ SQUAD  役割分担型</span>
+                        <span style="color:rgba(0,255,65,0.35);font-size:0.6rem;">▶ START</span>
                     </div>
-                    <div style="color:rgba(100,255,100,0.5);font-size:0.61rem;font-style:italic;border-left:2px solid rgba(0,255,65,0.4);padding-left:5px;margin-bottom:5px;">
-                        「地図を埋め尽くせ、空白地帯を残すな」
+                    <div style="color:rgba(0,255,65,0.5);font-size:0.61rem;font-style:italic;border-left:2px solid rgba(0,255,65,0.35);padding-left:5px;margin-bottom:5px;">
+                        「斥候・攻撃・調整の3専門役が連携する」
                     </div>
-                    <div style="display:flex;align-items:center;gap:2px;margin-bottom:4px;" title="各エージェントのtool配分">
+                    <div style="display:flex;align-items:center;gap:2px;margin-bottom:4px;">
                         <span style="font-size:0.5rem;color:rgba(0,229,255,0.45);margin-right:2px;white-space:nowrap;">FC:</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="001 · Gemini FC · rapid_move">🏃</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="002 · Gemini FC · rapid_move">🏃</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="003 · Gemini FC · rapid_move">🏃</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="001 · Gemini FC · radar · 斥候">🔭</span><span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="002 · Gemini FC · attack_boost · 攻撃兵">⚔</span><span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="003 · Gemini FC · comm_boost · 調整役">📻</span>
                         <span style="font-size:0.5rem;color:rgba(255,255,255,0.15);margin:0 2px;">|</span>
                         <span style="font-size:0.5rem;color:rgba(255,255,255,0.2);margin-right:2px;white-space:nowrap;">RB:</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.03);font-size:8px;" title="004 · Rule-based · rapid_move">🏃</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.03);font-size:8px;" title="005 · Rule-based · rapid_move">🏃</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.08);font-size:7px;color:rgba(255,255,255,0.2);" title="006–010 · Rule-based · (no tool)">·</span>
-                        <span style="font-size:0.5rem;color:rgba(255,255,255,0.18);">×5</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.03);font-size:8px;" title="004 · Rule-based · rapid_move">🏃</span><span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.03);font-size:8px;" title="005 · Rule-based · rapid_move">🏃</span><span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.08);font-size:7px;color:rgba(255,255,255,0.2);" title="006–010">·</span><span style="font-size:0.5rem;color:rgba(255,255,255,0.18);">×5</span>
                     </div>
-                    <div style="color:rgba(0,255,65,0.28);font-size:0.57rem;font-family:'Courier New';">prompt=SPREAD &thinsp;·&thinsp; budget=100G &thinsp;·&thinsp; mode=EXPAND</div>
+                    <div style="color:rgba(0,255,65,0.35);font-size:0.57rem;font-family:'Courier New';opacity:0.7;">arch=HETEROGENEOUS &thinsp;·&thinsp; coordination=ROLE-DIVISION &thinsp;·&thinsp; roles=3</div>
                 </div>
-
-                <!-- FORTIFY -->
-                <div onclick="quickStart('defend')" style="cursor:pointer;border:1px solid rgba(0,229,255,0.35);background:rgba(0,229,255,0.04);padding:8px 10px;margin-bottom:6px;transition:all 0.15s;"
+                <!-- ∿ SWARM  分散協調型 -->
+                <div onclick="quickStart('swarm')" style="cursor:pointer;border:1px solid rgba(0,229,255,0.35);background:rgba(0,229,255,0.04);padding:8px 10px;margin-bottom:6px;transition:all 0.15s;"
                      onmouseover="this.style.background='rgba(0,229,255,0.11)';this.style.borderColor='#00e5ff'"
                      onmouseout="this.style.background='rgba(0,229,255,0.04)';this.style.borderColor='rgba(0,229,255,0.35)'">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
-                        <span style="color:#00e5ff;font-size:0.78rem;letter-spacing:0.1em;font-weight:bold;">🛡 FORTIFY</span>
-                        <span style="color:rgba(0,229,255,0.45);font-size:0.6rem;">▶ START</span>
+                        <span style="color:#00e5ff;font-size:0.78rem;letter-spacing:0.1em;font-weight:bold;">∿ SWARM  分散協調型</span>
+                        <span style="color:rgba(0,229,255,0.35);font-size:0.6rem;">▶ START</span>
                     </div>
-                    <div style="color:rgba(100,200,255,0.5);font-size:0.61rem;font-style:italic;border-left:2px solid rgba(0,229,255,0.4);padding-left:5px;margin-bottom:5px;">
-                        「一歩一歩、確実に版図を広げよ」
+                    <div style="color:rgba(0,229,255,0.5);font-size:0.61rem;font-style:italic;border-left:2px solid rgba(0,229,255,0.35);padding-left:5px;margin-bottom:5px;">
+                        「個の行動が全体の知性を生む」
                     </div>
-                    <div style="display:flex;align-items:center;gap:2px;margin-bottom:4px;" title="各エージェントのtool配分">
+                    <div style="display:flex;align-items:center;gap:2px;margin-bottom:4px;">
                         <span style="font-size:0.5rem;color:rgba(0,229,255,0.45);margin-right:2px;white-space:nowrap;">FC:</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="001 · Gemini FC · shield">🛡</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="002 · Gemini FC · shield">🛡</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="003 · Gemini FC · shield">🛡</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="001 · Gemini FC · comm_boost+rapid_move · 分散協調">📡</span><span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="002 · Gemini FC · comm_boost+rapid_move · 分散協調">📡</span><span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(0,229,255,0.55);background:rgba(0,229,255,0.07);font-size:8px;" title="003 · Gemini FC · comm_boost+rapid_move · 分散協調">📡</span>
                         <span style="font-size:0.5rem;color:rgba(255,255,255,0.15);margin:0 2px;">|</span>
                         <span style="font-size:0.5rem;color:rgba(255,255,255,0.2);margin-right:2px;white-space:nowrap;">RB:</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.03);font-size:8px;" title="004 · Rule-based · medkit">💊</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.03);font-size:8px;" title="005 · Rule-based · medkit">💊</span>
-                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.08);font-size:7px;color:rgba(255,255,255,0.2);" title="006–010 · Rule-based · (no tool)">·</span>
-                        <span style="font-size:0.5rem;color:rgba(255,255,255,0.18);">×5</span>
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.03);font-size:8px;" title="004 · Rule-based · rapid_move">🏃</span><span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.03);font-size:8px;" title="005 · Rule-based · rapid_move">🏃</span><span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1px solid rgba(255,255,255,0.08);font-size:7px;color:rgba(255,255,255,0.2);" title="006–010">·</span><span style="font-size:0.5rem;color:rgba(255,255,255,0.18);">×5</span>
                     </div>
-                    <div style="color:rgba(0,229,255,0.28);font-size:0.57rem;font-family:'Courier New';">prompt=DEFEND &thinsp;·&thinsp; budget=80G &thinsp;·&thinsp; mode=HOLD</div>
+                    <div style="color:rgba(0,229,255,0.35);font-size:0.57rem;font-family:'Courier New';opacity:0.7;">arch=SWARM &thinsp;·&thinsp; coordination=EMERGENT &thinsp;·&thinsp; prompt=SHARED</div>
                 </div>
 
                 <!-- Custom Setup -->
@@ -723,7 +729,7 @@
                         onmouseover="this.style.borderColor='rgba(255,255,255,0.3)';this.style.color='rgba(255,255,255,0.5)'"
                         onmouseout="this.style.borderColor='rgba(255,255,255,0.1)';this.style.color='rgba(255,255,255,0.28)'">
                     [ CUSTOM SETUP ↗ ]<br>
-                    <span style="font-size:0.54rem;color:rgba(255,255,255,0.16);letter-spacing:0.03em;">sys_prompt/agent &thinsp;·&thinsp; tool/agent &thinsp;·&thinsp; per-unit override</span>
+                    <span style="font-size:0.54rem;color:rgba(255,255,255,0.16);letter-spacing:0.03em;">sys_prompt[i] &thinsp;·&thinsp; tool[i] &thinsp;·&thinsp; per-unit override × 10</span>
                 </button>
             </div>
             <button id="btn-start" style="display:none;">[ GAME START ]</button>
@@ -763,7 +769,6 @@
                 />
                 <div class="btn-row">
                     <button id="btn-send-chat" class="cyber-btn cyan" disabled>SEND</button>
-                    <button id="btn-voice-chat" class="cyber-btn orange" disabled title="音声で副司令官に話しかける">🎤 VOICE</button>
                 </div>
             </div>
 
@@ -1312,9 +1317,13 @@
         // 使用した戦略プリセット（勝利モーダル表示用）
         let activePresetType = null;
         const PRESET_LABELS = {
-            rush: '⚔ ASSAULT — 猛攻型',
-            spread: '◈ SPREAD — 分散制圧型',
-            defend: '🛡 FORTIFY — 堅守型',
+            rush:         '⚔ ASSAULT — 猛攻型',
+            spread:       '◈ SPREAD — 分散制圧型',
+            defend:       '🛡 FORTIFY — 堅守型',
+            flat:         '⋯ FLAT — 完全独立型',
+            hierarchical: '▲ HIERARCHY — 指揮統制型',
+            squad:        '◎ SQUAD — 役割分担型',
+            swarm:        '∿ SWARM — 分散協調型',
         };
 
         // プリセット戦略をプロンプトに適用
@@ -1340,40 +1349,77 @@
             ta.style.borderColor = type === 'rush' ? '#ff0055' : type === 'spread' ? '#00ff41' : '#00e5ff';
         }
 
-        // クイックスタートシナリオ定義
+        // クイックスタート: マルチエージェントアーキテクチャ定義
+        const _RB_DEFAULT = `あなたは東京23区の陣取りゲームの兵士です。目標: 敵の区を占領し、味方の支配領域を拡大する。戦略的に行動してください。`;
         const SCENARIO_DEFS = {
-            rush: {
-                color: '#ff0055',
-                prompt: `あなたは東京23区の陣取りゲームの精鋭突撃兵です。
+            // ─── 旧プリセット（CUSTOM SETUP用に保持）─────────────────────
+            rush:   { color:'#ff0055', prompt:`あなたは東京23区の陣取りゲームの精鋭突撃兵です。
 戦略: 最速で敵支配区に突入し、次々と制圧する。
 防衛は最小限にとどめ、常に前進し敵の中枢を狙ってください。
-「敵が守っている区こそ、真っ先に奪え」`,
-                tools: [
-                    ['rapid_move'], ['rapid_move'], ['rapid_move'],
-                    ['attack_boost'], [], [], [], [], [], []
-                ]
+「敵が守っている区こそ、真っ先に奪え」`, tools:[['rapid_move'],['rapid_move'],['rapid_move'],['attack_boost'],[],[],[],[],[],[]] },
+            spread: { color:'#00ff41', prompt:`あなたは東京23区の陣取りゲームの分散展開エージェントです。
+戦略: 中立区を最優先で確保する。他エージェントと同じ区を狙わず分散展開してください。
+「地図を埋め尽くせ、空白地帯を残すな」`, tools:[['rapid_move'],['rapid_move'],['rapid_move'],['rapid_move'],['rapid_move'],[],[],[],[],[]] },
+            defend: { color:'#00e5ff', prompt:`あなたは東京23区の陣取りゲームの堅守型エージェントです。
+戦略: 確保した区を守りながら、安全な場所から確実に拡大する。
+「一歩一歩、確実に版図を広げよ」`, tools:[['shield'],['shield'],['shield'],['medkit'],['medkit'],[],[],[],[],[]] },
+
+            // ─── マルチエージェントアーキテクチャプリセット ────────────────
+            flat: {
+                color: '#ff5566',
+                arch: 'FLAT', coordination: 'NONE', prompt_mode: 'IDENTICAL',
+                roles: ['自律', '自律', '自律'],
+                roleIcons: ['🏃', '🏃', '🏃'],
+                tagline: '「自分の判断で動け、誰も頼るな」',
+                prompts: [
+                    `あなたは独立して行動する自律エージェント(player_001)です。他のエージェントに頼らず、自分の判断で最速に中立区・敵区を制圧してください。通信は最小限。「自分の判断で動け、誰も頼るな」`,
+                    `あなたは独立して行動する自律エージェント(player_002)です。他のエージェントに頼らず、自分の判断で最速に中立区・敵区を制圧してください。通信は最小限。「自分の判断で動け、誰も頼るな」`,
+                    `あなたは独立して行動する自律エージェント(player_003)です。他のエージェントに頼らず、自分の判断で最速に中立区・敵区を制圧してください。通信は最小限。「自分の判断で動け、誰も頼るな」`,
+                    _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT
+                ],
+                tools: [['rapid_move'],['rapid_move'],['rapid_move'],['attack_boost'],[],[],[],[],[],[]]
             },
-            spread: {
+            hierarchical: {
+                color: '#ffaa00',
+                arch: 'HIERARCHICAL', coordination: 'TOP-DOWN', prompt_mode: 'ROLE-DIFF',
+                roles: ['リーダー', 'フォロワー', 'フォロワー'],
+                roleIcons: ['👑', '🏃', '🏃'],
+                tagline: '「001が指揮、002-003が命令を実行」',
+                prompts: [
+                    `あなたはチームのリーダー(player_001)です。チーム全体の戦況を分析し、各エージェントへの具体的な作戦指示をsend_messageで発信してください。例:「002は渋谷区、003は新宿区を今すぐ確保」。自らも最重要拠点を攻略してください。`,
+                    `あなたは精鋭兵士(player_002)です。リーダー(player_001)のメッセージを最優先で実行してください。例:「002→渋谷区」の指示があれば即座に移動。指示がなければ最寄りの中立区を確保し、行動をsend_messageで報告してください。`,
+                    `あなたは精鋭兵士(player_003)です。リーダー(player_001)のメッセージを最優先で実行してください。例:「003→新宿区」の指示があれば即座に移動。指示がなければ最寄りの中立区を確保し、行動をsend_messageで報告してください。`,
+                    _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT
+                ],
+                tools: [['comm_boost'],['rapid_move'],['rapid_move'],[],[],[],[],[],[],[]]
+            },
+            squad: {
                 color: '#00ff41',
-                prompt: `あなたは東京23区の陣取りゲームの分散展開エージェントです。
-戦略: 中立区（まだ誰も支配していない区）を最優先で確保する。
-他のエージェントと同じ区を狙わず、必ず異なる区へ分散展開してください。
-「地図を埋め尽くせ、空白地帯を残すな」`,
-                tools: [
-                    ['rapid_move'], ['rapid_move'], ['rapid_move'],
-                    ['rapid_move'], ['rapid_move'], [], [], [], [], []
-                ]
+                arch: 'HETEROGENEOUS', coordination: 'ROLE-DIVISION', prompt_mode: 'PER-AGENT',
+                roles: ['斥候', '攻撃', '調整'],
+                roleIcons: ['🔭', '⚔', '📻'],
+                tagline: '「3体が異なる専門役割を担う」',
+                prompts: [
+                    `あなたは偵察専門の斥候(player_001)です。レーダーで広範囲を探索し、敵の動向・無防備な区をsend_messageで即報告してください。例:「渋谷区に敵2体確認」「新宿区が無防備」。偵察情報をチームに与えることが最優先。中立区の確保は次善。`,
+                    `あなたは攻撃特化の強襲兵(player_002)です。斥候(player_001)の情報を活用し、敵エージェントの撃破と敵支配区の奪取を最優先に行動してください。「強い者を倒して道を開け」`,
+                    `あなたは調整役の将校(player_003)です。味方全員の動きを見て、重複を排除する指示をsend_messageで発信してください。自らは隣接する未占領区を着実に確保してください。「全員が別々の区を確保するよう誘導せよ」`,
+                    _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT
+                ],
+                tools: [['radar'],['attack_boost'],['comm_boost'],['rapid_move'],['rapid_move'],[],[],[],[],[]]
             },
-            defend: {
+            swarm: {
                 color: '#00e5ff',
-                prompt: `あなたは東京23区の陣取りゲームの堅守型エージェントです。
-戦略: 確保した区を優先的に守りながら、安全な場所から確実に拡大する。
-敵のすぐ近くに単独で飛び込むのは避け、味方と連携しながら隣接区を固めてください。
-「一歩一歩、確実に版図を広げよ」`,
-                tools: [
-                    ['shield'], ['shield'], ['shield'],
-                    ['medkit'], ['medkit'], [], [], [], [], []
-                ]
+                arch: 'SWARM', coordination: 'EMERGENT', prompt_mode: 'SHARED',
+                roles: ['協調', '協調', '協調'],
+                roleIcons: ['📡', '📡', '📡'],
+                tagline: '「個の行動が全体の知性を生む」',
+                prompts: [
+                    `あなたはスウォームAIの一員(player_001)です。他のエージェントのメッセージを参考に、重複を避けながらチーム全体として最大版図を実現する最適行動を自律的に選択してください。必ずsend_messageで自分の意図・発見を共有し、集合知を形成してください。「個の行動が全体の知性を生む」`,
+                    `あなたはスウォームAIの一員(player_002)です。他のエージェントのメッセージを参考に、重複を避けながらチーム全体として最大版図を実現する最適行動を自律的に選択してください。必ずsend_messageで自分の意図・発見を共有し、集合知を形成してください。「個の行動が全体の知性を生む」`,
+                    `あなたはスウォームAIの一員(player_003)です。他のエージェントのメッセージを参考に、重複を避けながらチーム全体として最大版図を実現する最適行動を自律的に選択してください。必ずsend_messageで自分の意図・発見を共有し、集合知を形成してください。「個の行動が全体の知性を生む」`,
+                    _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT, _RB_DEFAULT
+                ],
+                tools: [['comm_boost','rapid_move'],['comm_boost','rapid_move'],['comm_boost','rapid_move'],['rapid_move'],['rapid_move'],[],[],[],[],[]]
             }
         };
 
@@ -1386,7 +1432,8 @@
             const panel = document.getElementById('scenario-panel');
             if (panel) panel.style.display = 'none';
 
-            const prompts = Array(10).fill(scenario.prompt);
+            // per-agent prompts 対応（prompts配列 or 単一prompt）
+            const prompts = scenario.prompts || Array(10).fill(scenario.prompt);
 
             try {
                 const response = await fetch('/game/start', {
@@ -1427,7 +1474,6 @@
 
                 document.getElementById('ai-chat-input').disabled = false;
                 document.getElementById('btn-send-chat').disabled = false;
-                document.getElementById('btn-voice-chat').disabled = false;
                 document.getElementById('btn-analysis').disabled = false;
                 document.getElementById('ai-chat-history').style.display = 'block';
                 document.getElementById('mic-fab').style.display = 'block';
@@ -1514,8 +1560,8 @@
                 // AIコマンダーチャット有効化
                 document.getElementById('ai-chat-input').disabled = false;
                 document.getElementById('btn-send-chat').disabled = false;
-                document.getElementById('btn-voice-chat').disabled = false;
                 document.getElementById('btn-analysis').disabled = false;
+                document.getElementById('btn-voice-chat').disabled = false;
                 document.getElementById('ai-chat-history').style.display = 'block';
 
                 // Live API 自動接続 + マイクFAB表示
@@ -1752,6 +1798,19 @@
 
             modal.style.display = 'flex';
             startMatrixRain(isWin);
+
+            // 最後のアナウンスを送ってから実況を終了
+            if (liveWs && liveWs.readyState === WebSocket.OPEN) {
+                const finalMsg = isWin
+                    ? '作戦完了！プレイヤー部隊が東京23区を制圧しました！ミッション、成功です！'
+                    : '作戦失敗…プレイヤー部隊が全滅しました。敵の勝利です。交信を終了します。';
+                liveWs.send(JSON.stringify({ type: 'text', data: finalMsg }));
+                setTimeout(() => {
+                    stopMic();
+                    if (liveWs) { liveWs.close(); liveWs = null; }
+                    setVoiceStatus('— 交信終了 —', '#555');
+                }, 6000);
+            }
         }
 
         // 発令中命令表示を更新
@@ -2573,8 +2632,11 @@
 
 
         // AIコマンダーチャット送信
+        let _aiChatInFlight = false;
         async function sendAIChat(message) {
             if (!message || !message.trim()) return;
+            if (_aiChatInFlight) return;  // 並列送信を防ぐ
+            _aiChatInFlight = true;
             displayChatMessage('user', message);
             document.getElementById('ai-chat-input').value = '';
 
@@ -2594,13 +2656,14 @@
                     displayChatMessage('ai', data.ai_response);
                 }
 
-                // STEP C: 命令が抽出された場合は通知表示
                 if (data.issued_order) {
                     showOrderNotification(data.issued_order);
                 }
 
             } catch (error) {
                 log(`❌ AIチャットエラー: ${error.message}`);
+            } finally {
+                _aiChatInFlight = false;
             }
         }
 
@@ -2631,46 +2694,6 @@
                 header.style.textShadow = '0 0 12px var(--neon-orange)';
                 setTimeout(() => { header.style.color = ''; header.style.textShadow = ''; }, 2500);
             }
-        }
-
-        // Web Speech API による副司令官への音声入力
-        let chatRecognition = null;
-
-        function startVoiceChat() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            const btn = document.getElementById('btn-voice-chat');
-            if (!SpeechRecognition) {
-                log('❌ この環境では音声入力非対応');
-                return;
-            }
-            // 録音中なら停止
-            if (chatRecognition) {
-                chatRecognition.stop();
-                chatRecognition = null;
-                if (btn) { btn.textContent = '🎤 VOICE'; btn.style.boxShadow = ''; }
-                return;
-            }
-            chatRecognition = new SpeechRecognition();
-            chatRecognition.lang = 'ja-JP';
-            chatRecognition.continuous = false;
-            chatRecognition.interimResults = false;
-            if (btn) {
-                btn.textContent = '⏹ REC...';
-                btn.style.boxShadow = '0 0 16px var(--neon-red)';
-            }
-            chatRecognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                document.getElementById('ai-chat-input').value = transcript;
-                sendAIChat(transcript);
-            };
-            chatRecognition.onerror = (event) => {
-                log(`❌ 音声認識エラー: ${event.error}`);
-            };
-            chatRecognition.onend = () => {
-                chatRecognition = null;
-                if (btn) { btn.textContent = '🎤 VOICE'; btn.style.boxShadow = ''; }
-            };
-            chatRecognition.start();
         }
 
         // チャットメッセージ表示
@@ -2725,8 +2748,6 @@
         const btnStart = document.getElementById('btn-start');
         btnStart.addEventListener('click', () => { addFlashEffect(btnStart); startGame(); });
 
-        // AIコマンダーチャット
-        document.getElementById('btn-voice-chat').addEventListener('click', startVoiceChat);
 
         document.getElementById('btn-send-chat').addEventListener('click', () => {
             const message = document.getElementById('ai-chat-input').value;
@@ -2771,7 +2792,18 @@
                 if (msg.type === 'audio') {
                     playPCMChunk(msg.data);
                 } else if (msg.type === 'transcript') {
-                    // モデルの思考テキストは無視（音声のみ使用）
+                    // 副司令官の発言テキスト → AIチャット欄に表示
+                    const text = msg.data || '';
+                    // 兵士通信の読み上げ（「こちら副司令官。」のみ or 短い）は表示しない
+                    if (text.length > 10 && !text.startsWith('読み上げ')) {
+                        displayChatMessage('ai', text);
+                    }
+                    // ORDERが含まれていたら通知（サーバー側で既に処理済みだが念のため）
+                    const om = text.match(/\[ORDER:\s*(.+?)\]/);
+                    if (om && om[1] !== 'なし') showOrderNotification(om[1]);
+                } else if (msg.type === 'order') {
+                    // サーバーから直接ORDER通知が来た場合
+                    showOrderNotification(msg.data);
                 } else if (msg.type === 'error') {
                     setVoiceStatus(msg.data, '#ef5350');
                 }
@@ -2868,7 +2900,6 @@
             if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
             if (captureCtx) { captureCtx.close(); captureCtx = null; }
             if (liveWs) { liveWs.close(); liveWs = null; }
-            document.getElementById('btn-voice').textContent = '🎤 音声コマンド';
             setVoiceStatus('', '');
         }
 
@@ -2881,6 +2912,17 @@
         function initializeApp() {
             initMap();
         }
+
+        // comm-panel を header 直下にフィットさせる
+        function adjustCommPanel() {
+            const header = document.querySelector('header');
+            const panel  = document.getElementById('comm-panel');
+            if (header && panel) {
+                panel.style.top = (header.getBoundingClientRect().bottom + 8) + 'px';
+            }
+        }
+        document.addEventListener('DOMContentLoaded', adjustCommPanel);
+        window.addEventListener('resize', adjustCommPanel);
 
         // グローバルスコープに関数を公開
         window.initializeApp = initializeApp;
