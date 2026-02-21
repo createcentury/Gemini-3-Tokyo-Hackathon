@@ -130,13 +130,10 @@ class DisasterGame:
                 self.missed += 1
                 reward -= inc["severity"] * 0.5
 
-        # Return resources
+        # Return ALL resources to base (ambulances/trucks return after each turn)
         for d in self.districts:
-            for res, cnt in d["resources"].items():
-                self.resources_available[res] = \
-                    min(RESOURCES[res]["count"],
-                        self.resources_available.get(res, 0) + cnt)
             d["resources"] = {}
+        self.resources_available = {k: v["count"] for k, v in RESOURCES.items()}
 
         self.score += reward
         self.turn  += 1

@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-MODEL = "gemini-2.0-flash"
+MODEL = "gemini-3-flash-preview"
 
 SYSTEM_PROMPT = """You are an AI grid operator for the Tokyo power grid.
 Each hour you must balance electricity supply and demand to avoid blackouts and

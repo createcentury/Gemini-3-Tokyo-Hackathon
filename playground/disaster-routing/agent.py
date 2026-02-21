@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-MODEL = "gemini-2.0-flash"
+MODEL = "gemini-3-flash-preview"
 
 SYSTEM_PROMPT = """You are an emergency dispatch AI for Tokyo.
 Each turn you receive the current city state and must allocate limited emergency resources
