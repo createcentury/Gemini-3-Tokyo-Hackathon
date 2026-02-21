@@ -1,4 +1,4 @@
-"""Gemini agent for disaster routing decisions."""
+"""Gemini agent for disaster routing decisions — with in-context online learning."""
 import base64
 import json
 import os
@@ -7,6 +7,7 @@ import re
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from logger import load_log
 
 load_dotenv()
 
@@ -33,16 +34,28 @@ Respond ONLY with valid JSON in this exact format:
 """
 
 
-def screenshot_to_b64(surface_bytes: bytes) -> str:
-    return base64.b64encode(surface_bytes).decode()
+def _build_few_shot_context(n: int = 3) -> str:
+    """Return the top-n highest-reward past experiences as few-shot examples."""
+    log = load_log()
+    if not log:
+        return ""
+    top = sorted(log, key=lambda e: e["reward"], reverse=True)[:n]
+    lines = ["--- Past high-reward examples (learn from these) ---"]
+    for i, entry in enumerate(top, 1):
+        lines.append(f"\nExample {i} (reward={entry['reward']:.1f}):")
+        lines.append(f"  Action taken: {json.dumps(entry['action'], ensure_ascii=False)}")
+        lines.append(f"  Reasoning: {entry['reasoning']}")
+    lines.append("--- End of examples ---\n")
+    return "\n".join(lines)
 
 
 def get_action(state: dict, screenshot_bytes: bytes | None = None) -> dict:
     """
     Ask Gemini to decide resource allocation.
-    state: serializable game state dict
-    screenshot_bytes: PNG bytes of the current game screen (optional)
+    Injects top past experiences into the prompt for online learning.
     """
+    few_shot = _build_few_shot_context(n=3)
+
     user_content = []
 
     if screenshot_bytes:
@@ -50,9 +63,12 @@ def get_action(state: dict, screenshot_bytes: bytes | None = None) -> dict:
             types.Part.from_bytes(data=screenshot_bytes, mime_type="image/png")
         )
 
-    user_content.append(
-        types.Part.from_text(text=f"Current game state:\n{json.dumps(state, ensure_ascii=False, indent=2)}\n\nAllocate resources now.")
-    )
+    prompt = ""
+    if few_shot:
+        prompt += few_shot + "\n"
+    prompt += f"Current game state:\n{json.dumps(state, ensure_ascii=False, indent=2)}\n\nAllocate resources now."
+
+    user_content.append(types.Part.from_text(text=prompt))
 
     response = client.models.generate_content(
         model=MODEL,
@@ -61,7 +77,6 @@ def get_action(state: dict, screenshot_bytes: bytes | None = None) -> dict:
     )
 
     raw = response.text.strip()
-    # strip markdown code fences if present
     raw = re.sub(r"^```[a-z]*\n?", "", raw)
     raw = re.sub(r"\n?```$", "", raw)
 

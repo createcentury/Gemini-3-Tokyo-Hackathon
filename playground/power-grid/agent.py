@@ -1,4 +1,4 @@
-"""Gemini agent for power grid balancing decisions."""
+"""Gemini agent for power grid balancing — with in-context online learning."""
 import json
 import os
 import re
@@ -6,6 +6,7 @@ import re
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from logger import load_log
 
 load_dotenv()
 
@@ -32,29 +33,51 @@ Respond ONLY with valid JSON:
 """
 
 
+def _build_few_shot_context(n: int = 3) -> str:
+    """Return top-n highest-reward past steps as few-shot examples."""
+    log = load_log()
+    if not log:
+        return ""
+    top = sorted(log, key=lambda e: e["reward"], reverse=True)[:n]
+    lines = ["--- Past high-reward decisions (learn from these) ---"]
+    for i, entry in enumerate(top, 1):
+        s = entry["state"]
+        a = entry["action"]
+        lines.append(
+            f"\nExample {i} (reward={entry['reward']:.3f}): "
+            f"hour={s.get('hour','?'):02d}:00 "
+            f"demand={s.get('demand_mw','?')}MW "
+            f"supply={s.get('supply_mw','?')}MW "
+            f"-> thermal={a.get('thermal_pct','?')}% | {entry['reasoning']}"
+        )
+    lines.append("--- End of examples ---\n")
+    return "\n".join(lines)
+
+
 def get_action(state: dict, screenshot_bytes: bytes | None = None) -> dict:
     """
     Ask Gemini to set thermal generation percentage.
-    state: serializable grid state dict
+    Injects top past decisions for in-context online learning.
     """
-    from google.genai import types as gtypes
+    few_shot = _build_few_shot_context(n=3)
 
     user_content = []
 
     if screenshot_bytes:
         user_content.append(
-            gtypes.Part.from_bytes(data=screenshot_bytes, mime_type="image/png")
+            types.Part.from_bytes(data=screenshot_bytes, mime_type="image/png")
         )
 
-    user_content.append(
-        gtypes.Part.from_text(
-            text=f"Current grid state:\n{json.dumps(state, ensure_ascii=False, indent=2)}\n\nSet thermal output now."
-        )
-    )
+    prompt = ""
+    if few_shot:
+        prompt += few_shot + "\n"
+    prompt += f"Current grid state:\n{json.dumps(state, ensure_ascii=False, indent=2)}\n\nSet thermal output now."
+
+    user_content.append(types.Part.from_text(text=prompt))
 
     response = client.models.generate_content(
         model=MODEL,
-        config=gtypes.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),
+        config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),
         contents=user_content,
     )
 
