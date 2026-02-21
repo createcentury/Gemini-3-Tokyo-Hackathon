@@ -173,6 +173,22 @@
                 選択中: <span id="selected-ward-name"></span>
             </div>
 
+            <!-- 自然言語コマンド入力 -->
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
+                <h3 style="font-size: 0.9rem; margin-bottom: 8px;">💬 自然言語コマンド</h3>
+                <input
+                    type="text"
+                    id="nl-command"
+                    placeholder="例: 新宿から渋谷に攻撃"
+                    style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem; margin-bottom: 5px;"
+                    disabled
+                />
+                <div style="display: flex; gap: 5px;">
+                    <button id="btn-execute-command" disabled style="flex: 1; padding: 8px; font-size: 0.85rem;">実行</button>
+                    <button id="btn-voice-input" disabled style="flex: 1; padding: 8px; font-size: 0.85rem;">🎤 音声</button>
+                </div>
+            </div>
+
             <div id="game-log"></div>
         </div>
     </div>
@@ -188,6 +204,7 @@
         let gameState = null;
         let wardMarkers = {};
         let selectedWard = null;
+        let recognition = null; // 音声認識
 
         // 区の中心座標
         const WARD_CENTERS = {
@@ -278,6 +295,12 @@
 
                 document.getElementById('btn-start').disabled = true;
                 document.getElementById('btn-end-turn').disabled = false;
+
+                // 自然言語コマンド入力を有効化
+                document.getElementById('nl-command').disabled = false;
+                document.getElementById('btn-execute-command').disabled = false;
+                document.getElementById('btn-voice-input').disabled = false;
+
             } catch (error) {
                 log(`❌ エラー: ${error.message}`);
             }
@@ -625,12 +648,144 @@
             }
         }
 
+        // 自然言語コマンド実行
+        async function executeNaturalCommand(commandText) {
+            if (!commandText.trim()) {
+                log('⚠️ コマンドを入力してください');
+                return;
+            }
+
+            log(`💬 実行中: "${commandText}"`);
+
+            try {
+                const response = await fetch('/command/natural', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        command: commandText
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    log(`✅ ${data.message}`);
+
+                    // 攻撃の場合はアニメーション表示
+                    if (data.command === 'attack' && data.args) {
+                        await showAttackRoute(data.args.from_ward, data.args.to_ward);
+                    }
+
+                    // 結果表示
+                    if (data.result && data.result.attack_result) {
+                        const res = data.result.attack_result;
+                        log(res.message || (res.success ? '攻撃成功！' : '攻撃失敗'));
+                    }
+
+                    // AI行動表示
+                    if (data.result && data.result.ai_actions) {
+                        for (const action of data.result.ai_actions) {
+                            const dec = action.decision;
+                            const res = action.result;
+                            log(`🤖 AI: ${dec.from} → ${dec.to} ${res.success ? '成功' : '失敗'}`);
+                        }
+                    }
+
+                    // 状態表示
+                    if (data.command === 'get_status' && data.result) {
+                        const r = data.result;
+                        log(`📊 ${r.ward}: ${r.owner} | 兵力${r.troops} | DEF${r.stats.DEF}`);
+                    }
+
+                    if (data.command === 'get_overview' && data.result) {
+                        const r = data.result;
+                        log(`📊 ターン${r.turn}: プレイヤー${r.player_wards}区/${r.total_player_troops}兵 vs AI${r.ai_wards}区/${r.total_ai_troops}兵`);
+                    }
+
+                    // ゲーム状態更新
+                    if (data.state) {
+                        gameState = data.state;
+                        updateUI();
+                        drawWardMarkers();
+                    }
+
+                } else if (data.is_question) {
+                    log(`❓ ${data.message}`);
+                } else {
+                    log(`❌ ${data.message || data.error || 'コマンドを実行できませんでした'}`);
+                }
+
+                // 入力欄をクリア
+                document.getElementById('nl-command').value = '';
+
+            } catch (error) {
+                log(`❌ エラー: ${error.message}`);
+            }
+        }
+
+        // 音声認識初期化
+        function initVoiceRecognition() {
+            if (!('webkitSpeechRecognition' in window)) {
+                log('⚠️ このブラウザは音声認識に対応していません');
+                document.getElementById('btn-voice-input').disabled = true;
+                return;
+            }
+
+            recognition = new webkitSpeechRecognition();
+            recognition.lang = 'ja-JP';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                log(`🎤 認識: "${transcript}"`);
+                document.getElementById('nl-command').value = transcript;
+                executeNaturalCommand(transcript);
+            };
+
+            recognition.onerror = (event) => {
+                log(`❌ 音声認識エラー: ${event.error}`);
+            };
+
+            recognition.onend = () => {
+                document.getElementById('btn-voice-input').textContent = '🎤 音声';
+            };
+        }
+
+        // 音声入力開始
+        function startVoiceInput() {
+            if (recognition) {
+                recognition.start();
+                document.getElementById('btn-voice-input').textContent = '🔴 停止';
+                log('🎤 話してください...');
+            }
+        }
+
         // イベントリスナー
         document.getElementById('btn-start').addEventListener('click', startGame);
         document.getElementById('btn-end-turn').addEventListener('click', endTurn);
 
+        // 自然言語コマンド
+        document.getElementById('btn-execute-command').addEventListener('click', () => {
+            const command = document.getElementById('nl-command').value;
+            executeNaturalCommand(command);
+        });
+
+        document.getElementById('nl-command').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const command = e.target.value;
+                executeNaturalCommand(command);
+            }
+        });
+
+        document.getElementById('btn-voice-input').addEventListener('click', startVoiceInput);
+
         // 地図読み込み完了時に初期化
-        window.addEventListener('load', initMap);
+        window.addEventListener('load', () => {
+            initMap();
+            initVoiceRecognition();
+        });
     </script>
 </body>
 </html>
