@@ -193,7 +193,7 @@
         #comm-panel {
             position: fixed;
             right: 12px;
-            top: 70px;   /* JSで header 直下に調整 */
+            top: 74px;
             bottom: 12px;
             width: 280px;
             z-index: 2000;
@@ -212,16 +212,27 @@
             letter-spacing: 0.1em;
             text-transform: uppercase;
             user-select: none;
+            flex-shrink: 0;
         }
         #comm-messages {
-            flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
+            flex: 1;
             overflow-y: auto;
             overflow-x: hidden;
             gap: 3px;
             padding: 6px 0 0 0;
+        }
+        #comm-messages::-webkit-scrollbar {
+            width: 3px;
+        }
+        #comm-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #comm-messages::-webkit-scrollbar-thumb {
+            background: rgba(0, 229, 255, 0.3);
+            border-radius: 2px;
         }
         .comm-msg {
             background: rgba(0, 5, 10, 0.88);
@@ -769,6 +780,9 @@
                 />
                 <div class="btn-row">
                     <button id="btn-send-chat" class="cyber-btn cyan" disabled>SEND</button>
+                    <button id="btn-voice-chat" class="cyber-btn orange" disabled
+                        title="マイクで副司令官に話しかける（Live API）"
+                        onclick="toggleMic()">🎤 VOICE</button>
                 </div>
             </div>
 
@@ -1193,6 +1207,23 @@
                             </div>
                         </details>
 
+                        <!-- アーキテクチャテンプレート -->
+                        <div style="margin-bottom:13px;">
+                            <div style="font-size:0.68rem;color:#00e5ff;letter-spacing:0.12em;margin-bottom:7px;">
+                                // AGENT ARCHITECTURE TEMPLATE
+                                <span style="color:rgba(0,229,255,0.32);font-size:0.56rem;font-weight:normal;margin-left:8px;">— per-agentプロンプト＋ツールを一括適用</span>
+                            </div>
+                            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:5px;">
+                                <button id="arch-btn-flat" onclick="applyArchTemplate('flat')" style="padding:7px 4px;cursor:pointer;background:rgba(255,85,102,0.05);border:1px solid rgba(255,85,102,0.35);color:#ff5566;font-family:'Courier New',monospace;font-size:0.68rem;line-height:1.55;text-align:center;transition:all 0.15s;" onmouseover="this.style.background='rgba(255,85,102,0.12)'" onmouseout="this.style.background='rgba(255,85,102,0.05)'"><div style="font-weight:bold;letter-spacing:0.05em;">⋯ FLAT</div><div style="font-size:0.54rem;opacity:0.55;">独立型</div></button>
+                                <button id="arch-btn-hierarchical" onclick="applyArchTemplate('hierarchical')" style="padding:7px 4px;cursor:pointer;background:rgba(255,170,0,0.05);border:1px solid rgba(255,170,0,0.35);color:#ffaa00;font-family:'Courier New',monospace;font-size:0.68rem;line-height:1.55;text-align:center;transition:all 0.15s;" onmouseover="this.style.background='rgba(255,170,0,0.12)'" onmouseout="this.style.background='rgba(255,170,0,0.05)'"><div style="font-weight:bold;letter-spacing:0.05em;">▲ HIER.</div><div style="font-size:0.54rem;opacity:0.55;">指揮統制型</div></button>
+                                <button id="arch-btn-squad" onclick="applyArchTemplate('squad')" style="padding:7px 4px;cursor:pointer;background:rgba(0,255,65,0.05);border:1px solid rgba(0,255,65,0.35);color:#00ff41;font-family:'Courier New',monospace;font-size:0.68rem;line-height:1.55;text-align:center;transition:all 0.15s;" onmouseover="this.style.background='rgba(0,255,65,0.12)'" onmouseout="this.style.background='rgba(0,255,65,0.05)'"><div style="font-weight:bold;letter-spacing:0.05em;">◎ SQUAD</div><div style="font-size:0.54rem;opacity:0.55;">役割分担型</div></button>
+                                <button id="arch-btn-swarm" onclick="applyArchTemplate('swarm')" style="padding:7px 4px;cursor:pointer;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.35);color:#00e5ff;font-family:'Courier New',monospace;font-size:0.68rem;line-height:1.55;text-align:center;transition:all 0.15s;" onmouseover="this.style.background='rgba(0,229,255,0.12)'" onmouseout="this.style.background='rgba(0,229,255,0.05)'"><div style="font-weight:bold;letter-spacing:0.05em;">∿ SWARM</div><div style="font-size:0.54rem;opacity:0.55;">分散協調型</div></button>
+                            </div>
+                            <div id="arch-applied" style="display:none;font-size:0.63rem;padding:4px 8px;border:1px solid rgba(0,229,255,0.25);color:rgba(0,229,255,0.7);background:rgba(0,229,255,0.04);letter-spacing:0.04em;">
+                                ✓ テンプレート適用済 — 下のユニット設定を確認・上書きできます
+                            </div>
+                        </div>
+
                         <!-- 全体戦略プロンプト -->
                         <div style="margin-bottom:13px;">
                             <div style="font-size:0.68rem;color:#00e5ff;
@@ -1240,34 +1271,47 @@
                             // UNIT DEPLOYMENT — 武装 + 個別指示
                         </div>
                         <div style="display:grid;gap:4px;">
-                            ${Array.from({length: 10}, (_, i) => `
+                            ${Array.from({length: 10}, (_, i) => {
+                                const isFC = i < 3;
+                                const unitColor = isFC ? '#00e5ff' : 'rgba(255,255,255,0.28)';
+                                const unitBorder = isFC ? 'rgba(0,229,255,0.55)' : 'rgba(255,255,255,0.18)';
+                                const unitBg = isFC ? 'rgba(0,229,255,0.03)' : 'rgba(0,5,2,0.8)';
+                                const badge = isFC
+                                    ? '<span style="font-size:0.52rem;color:rgba(0,229,255,0.75);background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.4);padding:1px 5px;letter-spacing:0.08em;">Gemini FC</span>'
+                                    : '<span style="font-size:0.52rem;color:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.12);padding:1px 5px;letter-spacing:0.08em;">Rule-based</span>';
+                                const ph = isFC ? '> Gemini FC — システムプロンプト (役割・戦略)' : '> Rule-based — 個別指示 (オプション)';
+                                const inputColor = isFC ? '#a0e8ff' : 'rgba(160,160,160,0.7)';
+                                const inputBorder = isFC ? 'rgba(0,229,255,0.22)' : 'rgba(255,255,255,0.1)';
+                                return `
                                 <div style="
-                                    background:rgba(0,5,2,0.8);
-                                    border:1px solid rgba(0,255,65,0.12);
+                                    background:${unitBg};
+                                    border:1px solid ${unitBorder};
                                     padding:7px 10px;
                                 ">
                                     <div style="display:flex;align-items:center;
-                                        gap:7px;margin-bottom:5px;">
+                                        gap:5px;margin-bottom:5px;">
                                         <span style="
-                                            border:1px solid #00ff41;color:#00ff41;
+                                            border:1px solid ${unitColor};color:${unitColor};
                                             font-size:0.68rem;padding:2px 7px;
                                             letter-spacing:0.1em;white-space:nowrap;
                                         ">UNIT_${String(i+1).padStart(3,'0')}</span>
+                                        ${badge}
                                         <div id="tool-row-${i}"
                                             style="display:flex;flex-wrap:wrap;gap:3px;"></div>
                                     </div>
                                     <input id="prompt-${i}" type="text"
-                                        placeholder="> 個別指示 (偵察専門 / 攻撃的 / 防衛重視...)"
+                                        placeholder="${ph}"
                                         style="
                                             width:100%;padding:4px 8px;font-size:0.74rem;
                                             background:rgba(0,0,0,0.5);
-                                            border:1px solid rgba(0,255,65,0.18);
-                                            color:#a0ffa0;
+                                            border:1px solid ${inputBorder};
+                                            color:${inputColor};
                                             font-family:'Courier New',monospace;outline:none;
                                         "
                                     />
                                 </div>
-                            `).join('')}
+                                `;
+                            }).join('')}
                         </div>
 
                         <!-- 実行ボタン -->
@@ -1327,6 +1371,50 @@
         };
 
         // プリセット戦略をプロンプトに適用
+        function applyArchTemplate(type) {
+            const scenario = SCENARIO_DEFS[type];
+            if (!scenario || !scenario.prompts) return;
+
+            // per-agentプロンプトを各ユニット入力にセット（ツール・予算は変更しない）
+            for (let i = 0; i < 10; i++) {
+                const el = document.getElementById(`prompt-${i}`);
+                if (el) el.value = scenario.prompts[i] || '';
+            }
+
+            // グローバルプロンプトをクリア（テンプレートがper-agentで完結）
+            const globalEl = document.getElementById('global-prompt');
+            if (globalEl) globalEl.value = '';
+
+
+            // ボタンのアクティブ状態を更新
+            const colorMap = {flat:'255,85,102', hierarchical:'255,170,0', squad:'0,255,65', swarm:'0,229,255'};
+            ['flat','hierarchical','squad','swarm'].forEach(t => {
+                const btn = document.getElementById(`arch-btn-${t}`);
+                if (!btn) return;
+                const rgb = colorMap[t];
+                if (t === type) {
+                    btn.style.background = `rgba(${rgb},0.2)`;
+                    btn.style.borderColor = SCENARIO_DEFS[t].color;
+                    btn.style.boxShadow = `0 0 8px ${SCENARIO_DEFS[t].color}55`;
+                } else {
+                    btn.style.background = `rgba(${rgb},0.04)`;
+                    btn.style.borderColor = `rgba(${rgb},0.35)`;
+                    btn.style.boxShadow = '';
+                }
+            });
+
+            // 適用通知を表示
+            const notice = document.getElementById('arch-applied');
+            if (notice) {
+                notice.style.display = 'block';
+                notice.style.borderColor = scenario.color;
+                notice.style.color = scenario.color;
+                notice.style.background = `rgba(${colorMap[type]},0.05)`;
+            }
+
+            activePresetType = type;
+        }
+
         function applyPreset(type) {
             activePresetType = type;
             const ta = document.getElementById('global-prompt');
@@ -1441,7 +1529,8 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         player_prompts: prompts,
-                        player_tools: scenario.tools
+                        player_tools: scenario.tools,
+                        arch_mode: type
                     })
                 });
                 const data = await response.json();
@@ -1474,6 +1563,7 @@
 
                 document.getElementById('ai-chat-input').disabled = false;
                 document.getElementById('btn-send-chat').disabled = false;
+                document.getElementById('btn-voice-chat').disabled = false;
                 document.getElementById('btn-analysis').disabled = false;
                 document.getElementById('ai-chat-history').style.display = 'block';
                 document.getElementById('mic-fab').style.display = 'block';
@@ -1502,7 +1592,8 @@
 
             for (let i = 0; i < 10; i++) {
                 const individual = document.getElementById(`prompt-${i}`).value;
-                prompts.push(individual ? `${globalPrompt}\n\n${individual}` : globalPrompt);
+                const combined = (globalPrompt && individual) ? `${globalPrompt}\n\n${individual}` : (individual || globalPrompt);
+                prompts.push(combined);
             }
 
             // 予算チェック
@@ -1521,7 +1612,8 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         player_prompts: prompts,
-                        player_tools: agentTools.map(t => [...t])
+                        player_tools: agentTools.map(t => [...t]),
+                        arch_mode: (['flat','hierarchical','squad','swarm'].includes(activePresetType)) ? activePresetType : 'flat'
                     })
                 });
                 const data = await response.json();
@@ -1705,9 +1797,10 @@
             div.className = 'comm-msg ' + (isPlayer ? 'player' : 'ai');
             div.innerHTML = `<div class="comm-sender">${isPlayer ? '🔵' : '🔴'} ${sender}</div>${text}`;
             container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
 
-            // 最大8件 — 古いものを削除
-            while (container.children.length > 8) container.removeChild(container.firstChild);
+            // 最大40件 — 古いものを削除
+            while (container.children.length > 40) container.removeChild(container.firstChild);
 
             // 12秒後にフェードアウト → 削除
             setTimeout(() => {
@@ -2847,6 +2940,10 @@
                 setVoiceStatus('マイクアクセス拒否', '#ef5350');
                 return;
             }
+            // サーバーに「マイクON」を通知 → injector停止
+            if (liveWs && liveWs.readyState === WebSocket.OPEN) {
+                liveWs.send(JSON.stringify({ type: 'mic_start' }));
+            }
             captureCtx = new AudioContext({ sampleRate: 16000 });
             const source = captureCtx.createMediaStreamSource(micStream);
             processorNode = captureCtx.createScriptProcessor(4096, 1, 1);
@@ -2865,9 +2962,11 @@
             };
             source.connect(processorNode);
             processorNode.connect(captureCtx.destination);
-            setVoiceStatus('🎤 送信中 — 話しかけてください', '#ef5350');
+            setVoiceStatus('🎤 会話モード — 話しかけてください（実況停止中）', '#ef5350');
             const fab = document.getElementById('mic-fab');
             if (fab) { fab.style.background = '#c62828'; fab.style.transform = 'scale(1.15)'; }
+            const btn = document.getElementById('btn-voice-chat');
+            if (btn) btn.textContent = '🔴 STOP';
         }
 
         // マイク停止（Live WS は維持）
@@ -2875,11 +2974,15 @@
             if (processorNode) { processorNode.disconnect(); processorNode = null; }
             if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
             if (captureCtx) { captureCtx.close(); captureCtx = null; }
+            // サーバーに「マイクOFF」を通知 → injector再開
             if (liveWs && liveWs.readyState === WebSocket.OPEN) {
+                liveWs.send(JSON.stringify({ type: 'mic_stop' }));
                 setVoiceStatus('🔊 エージェント通信受信中', '#69f0ae');
             }
             const fab = document.getElementById('mic-fab');
             if (fab) { fab.style.background = '#1565c0'; fab.style.transform = 'scale(1)'; }
+            const btn = document.getElementById('btn-voice-chat');
+            if (btn) btn.textContent = '🎤 VOICE';
         }
 
         function playPCMChunk(b64) {

@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tokyo Disaster Routing — Gemini 3 Agent</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #0d1117; color: #e6edf3; display: flex; height: 100vh; overflow: hidden; }
+
+    #map { flex: 1; height: 100vh; }
+
+    #panel {
+      width: 340px; height: 100vh; background: #161b22; border-left: 1px solid #30363d;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    #panel-header {
+      padding: 16px; background: #1c2128; border-bottom: 1px solid #30363d;
+    }
+    #panel-header h1 { font-size: 16px; color: #f0c030; letter-spacing: 1px; }
+    #panel-header p  { font-size: 11px; color: #8b949e; margin-top: 2px; }
+
+    #stats {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px;
+      border-bottom: 1px solid #30363d;
+    }
+    .stat-box {
+      background: #0d1117; border-radius: 6px; padding: 8px 10px;
+    }
+    .stat-box .label { font-size: 10px; color: #8b949e; text-transform: uppercase; }
+    .stat-box .value { font-size: 20px; font-weight: bold; color: #f0c030; }
+
+    #resources {
+      padding: 12px; border-bottom: 1px solid #30363d;
+    }
+    #resources h3 { font-size: 11px; color: #8b949e; text-transform: uppercase; margin-bottom: 8px; }
+    .resource-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .resource-bar-bg { flex: 1; height: 8px; background: #21262d; border-radius: 4px; overflow: hidden; }
+    .resource-bar    { height: 8px; border-radius: 4px; transition: width 0.4s ease; }
+    .resource-label  { font-size: 12px; width: 90px; }
+    .resource-count  { font-size: 12px; color: #8b949e; width: 30px; text-align: right; }
+
+    #reasoning {
+      padding: 12px; border-bottom: 1px solid #30363d; flex: 1; overflow-y: auto;
+    }
+    #reasoning h3 { font-size: 11px; color: #8b949e; text-transform: uppercase; margin-bottom: 8px; }
+    #reasoning-text { font-size: 13px; color: #c9d1d9; line-height: 1.5; min-height: 60px; }
+    #thinking-indicator { color: #58a6ff; font-size: 12px; display: none; }
+
+    #log {
+      padding: 8px 12px; max-height: 180px; overflow-y: auto; border-bottom: 1px solid #30363d;
+    }
+    #log h3 { font-size: 11px; color: #8b949e; text-transform: uppercase; margin-bottom: 6px; }
+    .log-entry { font-size: 11px; color: #8b949e; padding: 2px 0; border-bottom: 1px solid #21262d; }
+    .log-entry .reward-pos { color: #3fb950; }
+    .log-entry .reward-neg { color: #f85149; }
+
+    #controls { padding: 12px; display: flex; gap: 8px; }
+    button {
+      flex: 1; padding: 10px; border: none; border-radius: 6px; cursor: pointer;
+      font-size: 13px; font-weight: 600; transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.85; }
+    #btn-step   { background: #238636; color: #fff; }
+    #btn-auto   { background: #1f6feb; color: #fff; }
+    #btn-reset  { background: #21262d; color: #e6edf3; border: 1px solid #30363d; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* reward sparkline */
+    #sparkline { padding: 0 12px 8px; }
+    #sparkline canvas { width: 100%; height: 60px; display: block; }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="panel">
+  <div id="panel-header">
+    <h1>TOKYO DISPATCH — GEMINI 3</h1>
+    <p>Real-world hazard data · Online learning agent</p>
+  </div>
+
+  <div id="stats">
+    <div class="stat-box"><div class="label">Turn</div><div class="value" id="stat-turn">0</div></div>
+    <div class="stat-box"><div class="label">Score</div><div class="value" id="stat-score">0</div></div>
+    <div class="stat-box"><div class="label">Resolved</div><div class="value" id="stat-resolved" style="color:#3fb950">0</div></div>
+    <div class="stat-box"><div class="label">Missed</div><div class="value" id="stat-missed" style="color:#f85149">0</div></div>
+  </div>
+
+  <div id="resources">
+    <h3>Available Resources</h3>
+    <div class="resource-row">
+      <span class="resource-label">🚑 Ambulance</span>
+      <div class="resource-bar-bg"><div class="resource-bar" id="bar-ambulance" style="background:#ff3232;width:100%"></div></div>
+      <span class="resource-count" id="cnt-ambulance">5/5</span>
+    </div>
+    <div class="resource-row">
+      <span class="resource-label">🚒 Fire Truck</span>
+      <div class="resource-bar-bg"><div class="resource-bar" id="bar-fire_truck" style="background:#ff8c00;width:100%"></div></div>
+      <span class="resource-count" id="cnt-fire_truck">4/4</span>
+    </div>
+    <div class="resource-row">
+      <span class="resource-label">🚔 Police</span>
+      <div class="resource-bar-bg"><div class="resource-bar" id="bar-police" style="background:#3232ff;width:100%"></div></div>
+      <span class="resource-count" id="cnt-police">3/3</span>
+    </div>
+  </div>
+
+  <div id="reasoning">
+    <h3>Gemini 3 Reasoning</h3>
+    <div id="thinking-indicator">⏳ Gemini is thinking...</div>
+    <div id="reasoning-text">Waiting for first action...</div>
+  </div>
+
+  <div id="sparkline">
+    <h3 style="font-size:11px;color:#8b949e;text-transform:uppercase;padding:4px 0 6px">Reward History</h3>
+    <canvas id="reward-canvas" height="60"></canvas>
+  </div>
+
+  <div id="log">
+    <h3>Action Log</h3>
+    <div id="log-entries"></div>
+  </div>
+
+  <div id="controls">
+    <button id="btn-step"  onclick="step()">▶ Step</button>
+    <button id="btn-auto"  onclick="toggleAuto()">⚡ Auto</button>
+    <button id="btn-reset" onclick="resetGame()">↺ Reset</button>
+  </div>
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────
+const RESOURCE_MAX = { ambulance: 5, fire_truck: 4, police: 3 };
+const HAZARD_COLORS = { 1:"#287a3c", 2:"#50a050", 3:"#c8b428", 4:"#dc7828", 5:"#c83232" };
+const RESOURCE_COLORS = { ambulance:"#ff3232", fire_truck:"#ff8c00", police:"#3232ff" };
+
+let map, ws, markers = {}, autoTimer = null;
+let rewardHistory = [];
+
+// ── WebSocket ────────────────────────────────────────────────
+function connect() {
+  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onmessage = e => handleMessage(JSON.parse(e.data));
+  ws.onclose   = () => setTimeout(connect, 2000);
+}
+
+function handleMessage(msg) {
+  if (msg.type === "state")    { updateUI(msg.state, msg.stats); }
+  if (msg.type === "thinking") { showThinking(true); }
+  if (msg.type === "action")   {
+    showThinking(false);
+    animateDispatches(msg.dispatches || []);
+    animateResolved(msg.resolved || []);
+    updateReasoning(msg.action.reasoning || "—");
+    addLog(msg);
+    setTimeout(() => updateUI(msg.state, msg.stats), 600);
+  }
+}
+
+function step()      { if (ws.readyState===1) ws.send(JSON.stringify({type:"step"})); }
+function resetGame() {
+  stopAuto();
+  if (ws.readyState===1) ws.send(JSON.stringify({type:"reset",seed:Math.floor(Math.random()*1000)}));
+}
+
+let autoRunning = false;
+function toggleAuto() {
+  autoRunning = !autoRunning;
+  document.getElementById("btn-auto").textContent = autoRunning ? "⏹ Stop" : "⚡ Auto";
+  if (autoRunning) autoLoop();
+}
+function stopAuto() {
+  autoRunning = false;
+  document.getElementById("btn-auto").textContent = "⚡ Auto";
+}
+function autoLoop() {
+  if (!autoRunning) return;
+  step();
+  setTimeout(autoLoop, 3500);
+}
+
+// ── Map ──────────────────────────────────────────────────────
+async function initMap() {
+  const res = await fetch("/api/maps-key");
+  const { key } = await res.json();
+
+  const script = document.createElement("script");
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&callback=onMapReady`;
+  script.async = true;
+  document.head.appendChild(script);
+}
+
+function onMapReady() {
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: { lat: 35.689, lng: 139.700 },
+    zoom: 11,
+    mapTypeId: "roadmap",
+    styles: [
+      { elementType:"geometry",   stylers:[{color:"#1a1a2e"}] },
+      { elementType:"labels.text.fill", stylers:[{color:"#8b949e"}] },
+      { featureType:"road",       elementType:"geometry", stylers:[{color:"#2d333b"}] },
+      { featureType:"road",       elementType:"labels.text.fill", stylers:[{color:"#8b949e"}] },
+      { featureType:"water",      elementType:"geometry", stylers:[{color:"#0d2137"}] },
+      { featureType:"poi",        stylers:[{visibility:"off"}] },
+      { featureType:"transit",    stylers:[{visibility:"off"}] },
+    ],
+  });
+  connect();
+}
+
+// ── UI update ────────────────────────────────────────────────
+function updateUI(state, stats) {
+  document.getElementById("stat-turn").textContent     = state.turn;
+  document.getElementById("stat-score").textContent    = state.score.toFixed(1);
+  document.getElementById("stat-resolved").textContent = state.resolved;
+  document.getElementById("stat-missed").textContent   = state.missed;
+
+  const res = state.resources;
+  for (const [name, max] of Object.entries(RESOURCE_MAX)) {
+    const cnt = res[name] ?? 0;
+    document.getElementById(`bar-${name}`).style.width = `${cnt/max*100}%`;
+    document.getElementById(`cnt-${name}`).textContent = `${cnt}/${max}`;
+  }
+
+  updateMarkers(state.districts);
+}
+
+function updateMarkers(districts) {
+  if (!map) return;
+  districts.forEach(d => {
+    const key = d.idx;
+    const pos = { lat: d.lat, lng: d.lng };
+    const hasIncident = d.incidents.length > 0;
+    const color = HAZARD_COLORS[d.hazard] || "#888";
+
+    if (!markers[key]) {
+      markers[key] = new google.maps.Marker({
+        position: pos,
+        map,
+        title: d.name,
+        icon: makeIcon(color, d.hazard, hasIncident),
+      });
+      markers[key].infoWindow = new google.maps.InfoWindow();
+      markers[key].addListener("click", () => {
+        const content = buildInfoContent(d);
+        markers[key].infoWindow.setContent(content);
+        markers[key].infoWindow.open(map, markers[key]);
+      });
+    } else {
+      markers[key].setIcon(makeIcon(color, d.hazard, hasIncident));
+    }
+
+    // Pulse animation for active incidents
+    if (hasIncident) {
+      markers[key].setAnimation(google.maps.Animation.BOUNCE);
+      setTimeout(() => markers[key].setAnimation(null), 1400);
+    }
+  });
+}
+
+function makeIcon(color, hazard, hasIncident) {
+  const size = 10 + hazard * 4;
+  const border = hasIncident ? "#ffffff" : color;
+  return {
+    path: google.maps.SymbolPath.CIRCLE,
+    scale: size,
+    fillColor: color,
+    fillOpacity: hasIncident ? 1.0 : 0.7,
+    strokeColor: border,
+    strokeWeight: hasIncident ? 2.5 : 1,
+  };
+}
+
+function buildInfoContent(d) {
+  const incidents = d.incidents.map(i =>
+    `<div style="color:#f85149">${i.icon} ${i.label} (${i.turns_remaining}T)</div>`
+  ).join("") || "<div style='color:#8b949e'>No incidents</div>";
+  return `
+    <div style="background:#161b22;color:#e6edf3;padding:10px;border-radius:6px;min-width:160px">
+      <b style="color:#f0c030">${d.name}</b>
+      <div style="font-size:11px;color:#8b949e;margin:4px 0">Hazard: ${d.hazard} · Pop: ${d.pop}</div>
+      ${incidents}
+    </div>`;
+}
+
+// ── Animations ───────────────────────────────────────────────
+function animateDispatches(dispatches) {
+  dispatches.forEach((d, i) => {
+    setTimeout(() => drawLine(d), i * 150);
+  });
+}
+
+function drawLine(d) {
+  if (!map) return;
+  const color = RESOURCE_COLORS[d.resource] || "#ffffff";
+  const line = new google.maps.Polyline({
+    path: [
+      { lat: d.from_lat, lng: d.from_lng },
+      { lat: d.to_lat,   lng: d.to_lng   },
+    ],
+    map,
+    geodesic: true,
+    strokeColor:   color,
+    strokeOpacity: 0.9,
+    strokeWeight:  2,
+    icons: [{
+      icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, fillColor: color, fillOpacity: 1, strokeWeight: 0 },
+      offset: "100%",
+    }],
+  });
+  // Animate arrow along path
+  let pct = 0;
+  const ticker = setInterval(() => {
+    pct += 4;
+    const icons = line.get("icons");
+    icons[0].offset = `${pct}%`;
+    line.set("icons", icons);
+    if (pct >= 100) clearInterval(ticker);
+  }, 20);
+  setTimeout(() => line.setMap(null), 1800);
+}
+
+function animateResolved(resolved) {
+  resolved.forEach((r, i) => {
+    setTimeout(() => showResolvedMarker(r), i * 200 + 600);
+  });
+}
+
+function showResolvedMarker(r) {
+  if (!map) return;
+  const m = new google.maps.Marker({
+    position: { lat: r.lat, lng: r.lng },
+    map,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 14,
+      fillColor: "#3fb950",
+      fillOpacity: 0.9,
+      strokeColor: "#ffffff",
+      strokeWeight: 2,
+    },
+    label: { text: "✓", color: "#ffffff", fontSize: "12px", fontWeight: "bold" },
+    animation: google.maps.Animation.DROP,
+  });
+  setTimeout(() => m.setMap(null), 1200);
+}
+
+// ── Reasoning & Log ──────────────────────────────────────────
+function showThinking(on) {
+  document.getElementById("thinking-indicator").style.display = on ? "block" : "none";
+  document.getElementById("btn-step").disabled = on;
+  document.getElementById("btn-auto").disabled = on;
+}
+
+function updateReasoning(text) {
+  document.getElementById("reasoning-text").textContent = text;
+}
+
+function addLog(msg) {
+  const r = msg.reward;
+  const cls = r >= 0 ? "reward-pos" : "reward-neg";
+  const entry = document.createElement("div");
+  entry.className = "log-entry";
+  entry.innerHTML = `Turn ${msg.state.turn} <span class="${cls}">${r >= 0 ? "+" : ""}${r.toFixed(1)}</span> — ${(msg.action.reasoning||"").slice(0,60)}...`;
+  const container = document.getElementById("log-entries");
+  container.insertBefore(entry, container.firstChild);
+  if (container.children.length > 20) container.removeChild(container.lastChild);
+
+  rewardHistory.push(r);
+  drawSparkline();
+}
+
+function drawSparkline() {
+  const canvas = document.getElementById("reward-canvas");
+  const ctx    = canvas.getContext("2d");
+  const W = canvas.offsetWidth, H = 60;
+  canvas.width = W; canvas.height = H;
+  ctx.clearRect(0, 0, W, H);
+
+  const data = rewardHistory.slice(-40);
+  if (data.length < 2) return;
+  const mn = Math.min(-1, ...data), mx = Math.max(1, ...data);
+  const scaleY = v => H - ((v - mn) / (mx - mn)) * (H - 8) - 4;
+  const scaleX = i => (i / (data.length - 1)) * W;
+
+  // Zero line
+  ctx.strokeStyle = "#30363d"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, scaleY(0)); ctx.lineTo(W, scaleY(0)); ctx.stroke();
+
+  // Sparkline
+  ctx.strokeStyle = "#f0c030"; ctx.lineWidth = 2;
+  ctx.beginPath();
+  data.forEach((v, i) => {
+    const x = scaleX(i), y = scaleY(v);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+}
+
+// ── Boot ─────────────────────────────────────────────────────
+window.onMapReady = onMapReady;
+initMap();
+</script>
+</body>
+</html>

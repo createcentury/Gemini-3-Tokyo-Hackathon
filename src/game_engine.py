@@ -233,6 +233,7 @@ class GameState:
         self.agents: dict[str, Agent] = {}  # agent_id -> Agent
         self.commander_order: str = ""       # プレイヤーからエージェントへの現在の命令
         self.agent_messages: dict[str, list] = {PLAYER: [], AI: []}
+        self.arch_mode: str = "flat"         # flat | hierarchical | squad | swarm
         # 各エントリ: {"from": "player_001", "text": "渋谷区へ向かいます"}
 
         # 初期化: 全区NEUTRAL
@@ -356,7 +357,8 @@ class GameState:
                 AI:      sum(1 for o in self.owner.values() if o == AI),
                 NEUTRAL: sum(1 for o in self.owner.values() if o == NEUTRAL),
             },
-            "agents": {aid: a.to_dict() for aid, a in self.agents.items()}
+            "agents": {aid: a.to_dict() for aid, a in self.agents.items()},
+            "arch_mode": self.arch_mode
         }
 
 

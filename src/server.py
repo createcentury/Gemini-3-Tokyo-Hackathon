@@ -94,6 +94,7 @@ class StartRequest(BaseModel):
     player_ward: str = "新宿区"
     player_prompts: Optional[list[str]] = None        # 10個のプロンプト
     player_tools: Optional[list[list[str]]] = None    # 10体それぞれのツールIDリスト
+    arch_mode: Optional[str] = "flat"                 # flat | hierarchical | squad | swarm
 
 # ============================================================
 # エンドポイント
@@ -132,6 +133,8 @@ async def start_game(req: StartRequest):
 
     state.setup_agents(player_prompts, ai_prompts, req.player_ward, ai_ward,
                        player_tools=player_tools, ai_tools=ai_tools)
+    state.arch_mode = req.arch_mode or "flat"
+    state._log(f"⚙️ アーキテクチャ: {state.arch_mode.upper()} | Gemini FC: player_001-003 | Rule-based: 004-010 + AI")
 
     sessions[session_id] = state
     session_created_at[session_id] = time.time()
@@ -294,8 +297,9 @@ async def chat_with_ai_commander(request: dict):
             extracted = order_match.group(1).strip()
             if extracted != "なし":
                 issued_order = extracted
+                if extracted != game_state.commander_order:
+                    game_state._log(f"🎖️ [副司令官命令] {extracted}")
                 game_state.commander_order = extracted
-                game_state._log(f"🎖️ [副司令官命令] {extracted}")
 
         # タグを表示テキストから除去
         display_response = re.sub(r'\s*\[ORDER:.*?\]', '', raw_response).strip()
@@ -601,6 +605,47 @@ def _process_tick(state) -> None:
         _last_sos.pop(aid, None)
 
 
+# FC エージェントID（Gemini API を使う3体のみ）
+_FC_AGENT_IDS = {"player_001", "player_002", "player_003"}
+
+
+def _rule_based_decide(agent, state) -> dict:
+    """ルールベースのヒューリスティック行動決定（FC以外の全エージェント用）"""
+    # すでに移動中なら何もしない
+    if agent.state == "moving":
+        return {"action": "idle", "params": {}}
+
+    best_ward = None
+    best_score = -1.0
+
+    for ward, (wlat, wlng) in WARD_LATLNG.items():
+        owner = state.owner.get(ward, NEUTRAL)
+        if owner == agent.owner:
+            continue  # 自陣はスキップ
+
+        dist = ((agent.lat - wlat) ** 2 + (agent.lng - wlng) ** 2) ** 0.5
+
+        # 基本スコア: 敵区 > 中立区（戦略的価値）
+        base = 3.0 if owner != NEUTRAL else 2.0
+
+        # 距離が近いほど高スコア
+        score = base / (dist + 0.001)
+
+        # 他の味方がすでに向かっている区は低優先
+        for other in state.agents.values():
+            if other.owner == agent.owner and other.target_ward == ward:
+                score *= 0.3
+                break
+
+        if score > best_score:
+            best_score = score
+            best_ward = ward
+
+    if best_ward and best_ward in WARD_LATLNG:
+        return {"action": "move_to_ward", "params": {"ward": best_ward}}
+    return {"action": "idle", "params": {}}
+
+
 async def run_agent_ai_loop(session_id: str):
     """各エージェントが定期的に行動判断を行う"""
     import time
@@ -629,17 +674,35 @@ async def run_agent_ai_loop(session_id: str):
                 moving_count = sum(1 for a in state.agents.values() if a.state == 'moving')
                 print(f"  [AgentAI] Loop {loop_count}: {moving_count} agents moving")
 
-            # 全エージェントがGeminiで行動判断（並列実行）
-            gemini_targets = []
+            # ── エージェント行動判断 ─────────────────────────────────────
+            arch = state.arch_mode  # flat | hierarchical | squad | swarm
+            swarm_interval = 1.5   # SWARM: 高頻度サイクル
+            fc_interval    = 3.0   # その他FC: 標準サイクル
+            rb_interval    = 5.0   # Rule-based: 低頻度で十分
+
+            fc_targets: list = []   # Gemini FC エージェント（player_001-003）
+            rb_targets: list = []   # Rule-based エージェント（004-010 + AI）
+
             for agent_id, agent in list(state.agents.items()):
                 if not agent.is_alive:
                     continue
-                if time.time() - agent.last_action_time < 3.0:
+                is_fc = agent_id in _FC_AGENT_IDS
+                interval = (swarm_interval if arch == "swarm" else fc_interval) if is_fc else rb_interval
+                if time.time() - agent.last_action_time < interval:
                     continue
-                gemini_targets.append((agent_id, agent))
+                if is_fc:
+                    fc_targets.append((agent_id, agent))
+                else:
+                    rb_targets.append((agent_id, agent))
 
-            # GeminiエージェントをgatherでALL並列実行
-            if gemini_targets:
+            # ① Rule-based エージェント（同期実行・API呼び出しなし）
+            for aid, agent in rb_targets:
+                decision = _rule_based_decide(agent, state)
+                execute_agent_action(agent, decision, state)
+                agent.last_action_time = time.time()
+
+            # ② Gemini FC エージェント（アーキテクチャに応じた実行モデル）
+            if fc_targets:
                 async def _gemini_decide(agent_id, agent):
                     try:
                         agent_ai = AgentAI(client, agent, state)
@@ -650,7 +713,34 @@ async def run_agent_ai_loop(session_id: str):
                         print(f"  [AgentAI] {agent_id} エラー: {e}")
                     agent.last_action_time = time.time()
 
-                await asyncio.gather(*[_gemini_decide(aid, a) for aid, a in gemini_targets])
+                if arch == "flat":
+                    # ⋯ FLAT: 全FC並列（独立分散）
+                    await asyncio.gather(*[_gemini_decide(aid, a) for aid, a in fc_targets])
+
+                elif arch == "hierarchical":
+                    # ▲ HIERARCHY: leader(001)先行 → broadcast → followers(002-003)並列
+                    leader    = [(aid, a) for aid, a in fc_targets if aid == "player_001"]
+                    followers = [(aid, a) for aid, a in fc_targets if aid != "player_001"]
+                    if leader:
+                        print(f"  [HIERARCHY] leader {leader[0][0]} deciding first...")
+                        await _gemini_decide(*leader[0])
+                    if followers:
+                        print(f"  [HIERARCHY] followers {[aid for aid,_ in followers]} receiving orders...")
+                        await asyncio.gather(*[_gemini_decide(aid, a) for aid, a in followers])
+
+                elif arch == "squad":
+                    # ◎ SQUAD: 厳密なシーケンシャルパイプライン 001→002→003
+                    for aid, a in sorted(fc_targets, key=lambda x: x[0]):
+                        print(f"  [SQUAD] pipeline → {aid}")
+                        await _gemini_decide(aid, a)
+
+                elif arch == "swarm":
+                    # ∿ SWARM: 短サイクル(1.5s)での並列分散協調
+                    await asyncio.gather(*[_gemini_decide(aid, a) for aid, a in fc_targets])
+
+                else:
+                    # フォールバック: flat と同じ
+                    await asyncio.gather(*[_gemini_decide(aid, a) for aid, a in fc_targets])
 
             await asyncio.sleep(0.1)
 
@@ -714,21 +804,39 @@ async def live_voice_ws(websocket: WebSocket, session_id: str):
             tool_lines.append(f"{aid}: {tools_str}")
     tool_briefing = "\n".join(tool_lines) if tool_lines else "装備なし"
 
+    player_ward_list = sorted(state.player_wards)
+    ai_ward_list     = sorted(state.ai_wards)
+
     system_instruction = f"""あなたは東京リスク作戦の副司令官です。
-兵士から届いた通信を読み上げる際、毎回必ず「こちら副司令官。」と名乗ってから内容を伝えてください。
-テキストでの返答は絶対に禁止です。音声のみで応答してください。
-解説・要約・コメントは不要です。受け取った内容をそのまま読んでください。
-SOSは緊迫した声で読んでください。
+
+【2つのモード】
+■ モード1 — 兵士通信の読み上げ
+  「読み上げてください:」または「緊急SOS！読み上げてください:」で始まるメッセージを受け取ったとき:
+  毎回必ず「こちら副司令官。」と名乗ってから内容をそのまま読み上げる。
+  SOSは緊迫した声で読む。解説・コメント不要。
+
+■ モード2 — 司令官との音声対話
+  司令官（ユーザー）から直接音声で話しかけられたとき:
+  副司令官として戦況を踏まえながら会話し、作戦意図を読み取って命令を発令する。
+  会話の末尾に必ず以下を付ける:
+  - 具体的な命令がある場合: [ORDER: <命令文>]
+  - 命令なし: [ORDER: なし]
+
+【現在の戦況（接続時点）】
+- プレイヤー支配区: {player_ward_list} ({len(player_ward_list)}区)
+- AI支配区: {ai_ward_list} ({len(ai_ward_list)}区)
+- 現在の命令: {state.commander_order or "なし"}
 
 【プレイヤー部隊の装備一覧】
 {tool_briefing}
 
-各エージェントの特性を把握し、実況に活かしてください。
-（例: 高速移動持ちは「スプリンターの○○が急行」、シールド持ちは「重装甲の○○が前衛」）"""
+各エージェントの特性を把握し実況に活かす。（例: 高速移動持ちは「スプリンターの○○が急行」）
+テキストでの返答は禁止。音声のみで応答すること。"""
 
     live_config = types.LiveConnectConfig(  # type: ignore[attr-defined]
         response_modalities=["AUDIO"],  # type: ignore[list-item]
         system_instruction=system_instruction,
+        output_audio_transcription=types.AudioTranscriptionConfig(),  # ORDER抽出用テキスト書き起こし
     )
 
     stop_event = asyncio.Event()
@@ -741,6 +849,14 @@ SOSは緊迫した声で読んでください。
         ) as live_session:
             print("  [LiveWS] Gemini Live API 接続完了")
 
+            import re as _re2
+            import time as _time
+
+            # ユーザー/モデルの状態フラグ
+            _user_last_audio = [0.0]
+            _model_last_audio = [0.0]
+            _mic_active = [False]  # マイクON中はinjectorを完全停止
+
             async def send_to_gemini():
                 audio_count = 0
                 try:
@@ -752,21 +868,27 @@ SOSは緊迫した声で読んでください。
                             await live_session.send_realtime_input(
                                 audio={"data": data, "mime_type": "audio/pcm;rate=16000"}
                             )
+                            _user_last_audio[0] = _time.time()
                             audio_count += 1
                             if audio_count % 50 == 0:
                                 print(f"  [LiveWS] 音声送信 {audio_count}チャンク")
+                        elif t == "mic_start":
+                            _mic_active[0] = True
+                            print("  [LiveWS] マイクON → injector停止")
+                        elif t == "mic_stop":
+                            _mic_active[0] = False
+                            _user_last_audio[0] = _time.time()  # 直後のinjector発火防止
+                            print("  [LiveWS] マイクOFF → injector再開待機")
                         elif t == "text":
                             print(f"  [LiveWS] テキスト送信: {msg['data'][:50]}")
-                            await live_session.send_client_content(
-                                turns=[{"role": "user", "parts": [{"text": msg["data"]}]}],
-                                turn_complete=True
-                            )
+                            await live_session.send_realtime_input(text=msg["data"])
                 except Exception as e:
                     print(f"  [LiveWS] send_to_gemini エラー: {e}")
                 finally:
                     stop_event.set()
 
             async def receive_from_gemini():
+                # 公式ドキュメントのパターン: while True + turn = session.receive() でマルチターン対応
                 audio_count = 0
                 try:
                     while not stop_event.is_set():
@@ -775,17 +897,36 @@ SOSは緊迫した声で読んでください。
                             if stop_event.is_set():
                                 break
                             sc = response.server_content
-                            if sc and sc.model_turn:
+                            if not sc:
+                                continue
+
+                            # オーディオチャンク
+                            if sc.model_turn:
                                 for part in sc.model_turn.parts:
-                                    if part.inline_data and isinstance(part.inline_data.data, bytes):
-                                        b64 = base64.b64encode(part.inline_data.data).decode()
+                                    if part.inline_data and part.inline_data.data:
+                                        data = bytes(part.inline_data.data)
+                                        b64 = base64.b64encode(data).decode()
                                         await websocket.send_json({"type": "audio", "data": b64})
+                                        _model_last_audio[0] = _time.time()
                                         audio_count += 1
                                         if audio_count % 10 == 0:
                                             print(f"  [LiveWS] 音声受信 {audio_count}チャンク → ブラウザ送信")
-                                    if hasattr(part, "text") and part.text:
-                                        # モデルの思考テキストはサーバーログのみ（フロントには送らない）
-                                        print(f"  [LiveWS] モデルテキスト(非表示): {part.text[:80]}")
+
+                            # テキスト書き起こし（output_audio_transcription経由）
+                            if hasattr(sc, 'output_transcription') and sc.output_transcription:
+                                raw_text = getattr(sc.output_transcription, 'text', None)
+                                if raw_text:
+                                    om = _re2.search(r'\[ORDER:\s*(.+?)\]', raw_text)
+                                    if om:
+                                        extracted = om.group(1).strip()
+                                        if extracted != "なし" and extracted != state.commander_order:
+                                            state.commander_order = extracted
+                                            state._log(f"🎖️ [副司令官命令] {extracted}")
+                                            print(f"  [LiveWS] ORDER抽出: {extracted}")
+                                    clean_text = _re2.sub(r'\s*\[ORDER:.*?\]', '', raw_text).strip()
+                                    if clean_text:
+                                        await websocket.send_json({"type": "transcript", "data": clean_text})
+                                        print(f"  [LiveWS] transcript: {clean_text[:60]}")
                 except Exception as e:
                     print(f"  [LiveWS] receive_from_gemini エラー: {e}")
                 finally:
@@ -796,26 +937,30 @@ SOSは緊迫した声で読んでください。
                 game_over_announced = False
                 try:
                     while not stop_event.is_set():
-                        await asyncio.sleep(2.0)
+                        await asyncio.sleep(6.0)  # 6秒間隔
 
-                        # ゲーム終了後は勝利アナウンスを1回だけ送って注入を停止
+                        # ゲーム終了
                         victory = state.check_victory()
                         if victory and not game_over_announced:
                             game_over_announced = True
-                            if victory == PLAYER:
-                                msg = "作戦完了！プレイヤー部隊が東京23区を制圧しました！ミッション、成功です！"
-                            else:
-                                msg = "作戦失敗…プレイヤー部隊が全滅しました。敵の勝利です。交信を終了します。"
-                            print(f"  [LiveWS] 勝利アナウンス: {msg}")
-                            await live_session.send_client_content(
-                                turns=[{"role": "user", "parts": [{"text": msg}]}],
-                                turn_complete=True
-                            )
-                            # アナウンス後は注入を終了
+                            end_msg = ("作戦完了！プレイヤー部隊が東京23区を制圧しました！ミッション、成功です！"
+                                       if victory == PLAYER else
+                                       "作戦失敗…プレイヤー部隊が全滅しました。敵の勝利です。交信を終了します。")
+                            print(f"  [LiveWS] 勝利アナウンス: {end_msg}")
+                            await live_session.send_realtime_input(text=end_msg)
                             break
-
                         if victory:
                             break
+
+                        now = _time.time()
+                        # マイクON中 → 完全停止（ユーザーとの会話を優先）
+                        if _mic_active[0]:
+                            continue
+                        # ユーザーが5秒以内に話していた or モデルが3秒以内に応答中 → スキップ
+                        if now - _user_last_audio[0] < 5.0:
+                            continue
+                        if now - _model_last_audio[0] < 3.0:
+                            continue
 
                         new_logs = state.log[last_idx:]
                         last_idx = len(state.log)
@@ -825,19 +970,19 @@ SOSは緊迫した声で読んでください。
                                     msg_text.replace("🆘", "").replace("📡", "").replace("🔵", "").strip()
                                 )
                                 print(f"  [LiveWS] SOS注入: {clean[:60]}")
-                                await live_session.send_client_content(
-                                    turns=[{"role": "user", "parts": [{"text": f"緊急SOS！読み上げてください: {clean}"}]}],
-                                    turn_complete=True
+                                await live_session.send_realtime_input(
+                                    text=f"緊急SOS！読み上げてください: {clean}"
                                 )
+                                await asyncio.sleep(0.3)
                             elif "📡" in msg_text:
                                 clean = _replace_coords(
                                     msg_text.replace("🔵", "").replace("🔴", "").replace("📡", "").strip()
                                 )
                                 print(f"  [LiveWS] 兵士通信注入: {clean[:60]}")
-                                await live_session.send_client_content(
-                                    turns=[{"role": "user", "parts": [{"text": f"読み上げてください: {clean}"}]}],
-                                    turn_complete=True
+                                await live_session.send_realtime_input(
+                                    text=f"読み上げてください: {clean}"
                                 )
+                                await asyncio.sleep(0.3)
                 except Exception as e:
                     print(f"  [LiveWS] injector エラー: {e}")
 
