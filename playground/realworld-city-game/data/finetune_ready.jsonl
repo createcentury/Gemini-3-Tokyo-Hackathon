@@ -1,0 +1,1 @@
+{"contents": [{"role": "user", "parts": [{"text": "シナリオ: day1\nリソース: 所持金¥5000, スタミナ100%\nプレイヤーの行動: コンビニへ行く"}]}, {"role": "model", "parts": [{"text": "テスト応答"}]}], "metadata": {"scenario_id": "day1", "rating": 5, "source": "realworld_city_game"}}

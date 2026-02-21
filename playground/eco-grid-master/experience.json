@@ -1,0 +1,65 @@
+[
+  {
+    "timestamp": "2026-02-21 10:00",
+    "grid_usage_rate": 84.0,
+    "action": "turn_off エアコン",
+    "user_approved": true,
+    "user_note": "",
+    "reward": 15.18,
+    "lesson": "使用率84%時の「turn_off エアコン」は効果的"
+  },
+  {
+    "timestamp": "2026-02-21 10:00",
+    "grid_usage_rate": 84.0,
+    "action": "turn_off テレビ",
+    "user_approved": true,
+    "user_note": "",
+    "reward": 3.036,
+    "lesson": "使用率84%時の「turn_off テレビ」は効果的"
+  },
+  {
+    "timestamp": "2026-02-21 10:00",
+    "grid_usage_rate": 84.0,
+    "action": "discharge バッテリー",
+    "user_approved": true,
+    "user_note": "",
+    "reward": 0.0,
+    "lesson": ""
+  },
+  {
+    "timestamp": "2026-02-21 10:00",
+    "grid_usage_rate": 84.0,
+    "action": "discharge バッテリー",
+    "user_approved": true,
+    "user_note": "",
+    "reward": 3.795,
+    "lesson": "使用率84%時の「discharge バッテリー」は効果的"
+  },
+  {
+    "timestamp": "2026-02-21 10:00",
+    "grid_usage_rate": 84.0,
+    "action": "discharge バッテリー",
+    "user_approved": true,
+    "user_note": "",
+    "reward": 0.0,
+    "lesson": ""
+  },
+  {
+    "timestamp": "2026-02-21 10:00",
+    "grid_usage_rate": 84.0,
+    "action": "discharge バッテリー",
+    "user_approved": true,
+    "user_note": "",
+    "reward": 0.0,
+    "lesson": ""
+  },
+  {
+    "timestamp": "2026-02-21 10:00",
+    "grid_usage_rate": 84.0,
+    "action": "discharge バッテリー",
+    "user_approved": true,
+    "user_note": "",
+    "reward": 3.036,
+    "lesson": "使用率84%時の「discharge バッテリー」は効果的"
+  }
+]

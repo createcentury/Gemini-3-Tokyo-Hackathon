@@ -365,7 +365,7 @@ actions が空の場合は [] にしてください。
 最適な制御アクションを決定してください。
 """
         # 利用可能なモデルを順に試す
-        models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash"]
+        models_to_try = ["gemini-2.5-flash", "gemini-3-flash-preview"]
         response = None
         for model_name in models_to_try:
             try:
