@@ -7,35 +7,35 @@ https://www.bousai.metro.tokyo.lg.jp/taisaku/torikumi/1000902/index.html
 # hazard_level: 1 (low) - 5 (high) based on earthquake/flood risk
 DISTRICTS = [
     # row 0 (north)
-    {"name": "練馬区",   "hazard": 2, "pop_density": 3},
-    {"name": "板橋区",   "hazard": 2, "pop_density": 3},
-    {"name": "北区",     "hazard": 3, "pop_density": 4},
-    {"name": "足立区",   "hazard": 5, "pop_density": 5},
-    {"name": "葛飾区",   "hazard": 5, "pop_density": 4},
+    {"name": "Nerima",    "hazard": 2, "pop_density": 3},
+    {"name": "Itabashi",  "hazard": 2, "pop_density": 3},
+    {"name": "Kita",      "hazard": 3, "pop_density": 4},
+    {"name": "Adachi",    "hazard": 5, "pop_density": 5},
+    {"name": "Katsushika","hazard": 5, "pop_density": 4},
     # row 1
-    {"name": "杉並区",   "hazard": 2, "pop_density": 4},
-    {"name": "豊島区",   "hazard": 3, "pop_density": 5},
-    {"name": "文京区",   "hazard": 2, "pop_density": 4},
-    {"name": "荒川区",   "hazard": 4, "pop_density": 5},
-    {"name": "江戸川区", "hazard": 5, "pop_density": 4},
+    {"name": "Suginami",  "hazard": 2, "pop_density": 4},
+    {"name": "Toshima",   "hazard": 3, "pop_density": 5},
+    {"name": "Bunkyo",    "hazard": 2, "pop_density": 4},
+    {"name": "Arakawa",   "hazard": 4, "pop_density": 5},
+    {"name": "Edogawa",   "hazard": 5, "pop_density": 4},
     # row 2 (center)
-    {"name": "渋谷区",   "hazard": 2, "pop_density": 4},
-    {"name": "新宿区",   "hazard": 3, "pop_density": 5},
-    {"name": "千代田区", "hazard": 2, "pop_density": 3},
-    {"name": "台東区",   "hazard": 4, "pop_density": 5},
-    {"name": "墨田区",   "hazard": 4, "pop_density": 5},
+    {"name": "Shibuya",   "hazard": 2, "pop_density": 4},
+    {"name": "Shinjuku",  "hazard": 3, "pop_density": 5},
+    {"name": "Chiyoda",   "hazard": 2, "pop_density": 3},
+    {"name": "Taito",     "hazard": 4, "pop_density": 5},
+    {"name": "Sumida",    "hazard": 4, "pop_density": 5},
     # row 3
-    {"name": "目黒区",   "hazard": 2, "pop_density": 3},
-    {"name": "品川区",   "hazard": 3, "pop_density": 4},
-    {"name": "港区",     "hazard": 2, "pop_density": 3},
-    {"name": "江東区",   "hazard": 5, "pop_density": 4},
-    {"name": "葛飾区2",  "hazard": 4, "pop_density": 3},
+    {"name": "Meguro",    "hazard": 2, "pop_density": 3},
+    {"name": "Shinagawa", "hazard": 3, "pop_density": 4},
+    {"name": "Minato",    "hazard": 2, "pop_density": 3},
+    {"name": "Koto",      "hazard": 5, "pop_density": 4},
+    {"name": "Katsushika2","hazard": 4, "pop_density": 3},
     # row 4 (south)
-    {"name": "大田区",   "hazard": 3, "pop_density": 4},
-    {"name": "世田谷区", "hazard": 2, "pop_density": 4},
-    {"name": "中野区",   "hazard": 2, "pop_density": 5},
-    {"name": "中央区",   "hazard": 4, "pop_density": 3},
-    {"name": "江東区2",  "hazard": 5, "pop_density": 4},
+    {"name": "Ota",       "hazard": 3, "pop_density": 4},
+    {"name": "Setagaya",  "hazard": 2, "pop_density": 4},
+    {"name": "Nakano",    "hazard": 2, "pop_density": 5},
+    {"name": "Chuo",      "hazard": 4, "pop_density": 3},
+    {"name": "Koto2",     "hazard": 5, "pop_density": 4},
 ]
 
 GRID_SIZE = 5
@@ -49,9 +49,9 @@ RESOURCES = {
 
 # Incident types with severity weights
 INCIDENT_TYPES = [
-    {"type": "fire",      "severity": 3, "needs": "fire_truck",  "label": "火災"},
-    {"type": "injury",    "severity": 2, "needs": "ambulance",   "label": "負傷者"},
-    {"type": "collapse",  "severity": 4, "needs": "fire_truck",  "label": "建物倒壊"},
-    {"type": "accident",  "severity": 2, "needs": "ambulance",   "label": "交通事故"},
-    {"type": "riot",      "severity": 1, "needs": "police",      "label": "群衆混乱"},
+    {"type": "fire",      "severity": 3, "needs": "fire_truck",  "label": "Fire"},
+    {"type": "injury",    "severity": 2, "needs": "ambulance",   "label": "Injury"},
+    {"type": "collapse",  "severity": 4, "needs": "fire_truck",  "label": "Collapse"},
+    {"type": "accident",  "severity": 2, "needs": "ambulance",   "label": "Accident"},
+    {"type": "riot",      "severity": 1, "needs": "police",      "label": "Riot"},
 ]

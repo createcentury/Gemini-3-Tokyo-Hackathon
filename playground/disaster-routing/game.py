@@ -38,9 +38,9 @@ class DisasterGame:
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("Tokyo Disaster Routing — Gemini Agent")
         self.clock  = pygame.time.Clock()
-        self.font_s = pygame.font.SysFont("notosanscjkjp", 11)
-        self.font_m = pygame.font.SysFont("notosanscjkjp", 14)
-        self.font_l = pygame.font.SysFont("notosanscjkjp", 18, bold=True)
+        self.font_s = pygame.font.SysFont("Arial", 11)
+        self.font_m = pygame.font.SysFont("Arial", 14)
+        self.font_l = pygame.font.SysFont("Arial", 18, bold=True)
         self.reset(seed)
 
     def reset(self, seed: int = 42):
@@ -172,14 +172,14 @@ class DisasterGame:
             self.screen.blit(name_surf, (x + 4, y + 4))
 
             # Hazard badge
-            haz_surf = self.font_s.render(f"危険度:{d['hazard']}", True, WHITE)
+            haz_surf = self.font_s.render(f"Risk:{d['hazard']}", True, WHITE)
             self.screen.blit(haz_surf, (x + 4, y + 18))
 
             # Incidents
             for j, inc in enumerate(d["incidents"]):
                 color_inc = RED if inc["severity"] >= 3 else ORANGE
                 inc_surf  = self.font_s.render(
-                    f"⚠ {inc['label']} ({inc['turns_remaining']}T)", True, color_inc
+                    f"! {inc['label']} ({inc['turns_remaining']}T)", True, color_inc
                 )
                 self.screen.blit(inc_surf, (x + 4, y + 36 + j * 16))
 
@@ -187,31 +187,27 @@ class DisasterGame:
         px = GRID_SIZE * CELL + 10
         py = 10
 
-        title = self.font_l.render("TOKYO 防災指令", True, YELLOW)
+        title = self.font_l.render("TOKYO DISPATCH", True, YELLOW)
         self.screen.blit(title, (px, py)); py += 30
 
         # Score
-        score_surf = self.font_m.render(f"スコア:  {self.score:.1f}", True, WHITE)
-        self.screen.blit(score_surf, (px, py)); py += 22
-        res_surf = self.font_m.render(f"解決済み: {self.resolved}", True, GREEN)
-        self.screen.blit(res_surf, (px, py)); py += 22
-        mis_surf = self.font_m.render(f"未対応:  {self.missed}", True, RED)
-        self.screen.blit(mis_surf, (px, py)); py += 22
-        turn_surf = self.font_m.render(f"ターン:  {self.turn}", True, GRAY)
-        self.screen.blit(turn_surf, (px, py)); py += 30
+        self.screen.blit(self.font_m.render(f"Score:    {self.score:.1f}", True, WHITE),  (px, py)); py += 22
+        self.screen.blit(self.font_m.render(f"Resolved: {self.resolved}",  True, GREEN),  (px, py)); py += 22
+        self.screen.blit(self.font_m.render(f"Missed:   {self.missed}",    True, RED),    (px, py)); py += 22
+        self.screen.blit(self.font_m.render(f"Turn:     {self.turn}",      True, GRAY),   (px, py)); py += 30
 
         # Resources
-        self.screen.blit(self.font_l.render("利用可能リソース", True, YELLOW), (px, py)); py += 24
+        self.screen.blit(self.font_l.render("Available Resources", True, YELLOW), (px, py)); py += 24
         for res_name, info in RESOURCES.items():
             count = self.resources_available.get(res_name, 0)
             surf  = self.font_m.render(
-                f"{info['emoji']} {res_name}: {count}/{info['count']}", True, info["color"]
+                f"{res_name}: {count}/{info['count']}", True, info["color"]
             )
             self.screen.blit(surf, (px, py)); py += 20
 
         # Legend
         py += 16
-        self.screen.blit(self.font_m.render("危険度カラー凡例", True, GRAY), (px, py)); py += 18
+        self.screen.blit(self.font_m.render("Hazard Level Legend", True, GRAY), (px, py)); py += 18
         for level, color in HAZARD_COLORS.items():
             pygame.draw.rect(self.screen, color, (px, py, 14, 14), border_radius=3)
             surf = self.font_s.render(f" Lv.{level}", True, WHITE)
@@ -219,7 +215,6 @@ class DisasterGame:
 
     def _draw_message(self):
         y = GRID_SIZE * CELL + 10
-        # word-wrap naively
         words = self.message[:120]
         surf  = self.font_m.render(words, True, WHITE)
         self.screen.blit(surf, (10, y))
