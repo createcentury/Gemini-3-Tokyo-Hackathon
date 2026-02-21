@@ -24,9 +24,25 @@ The `playground/` directory is designed for rapid prototyping and experimentatio
 
 ## Contributing
 
+### Quick Start (推奨)
+```bash
+# 新しいPOC開始
+mkdir playground/my-poc
+cd playground/my-poc
+
+# 開発してそのままpush
+git add .
+git commit -m "Add: my-poc implementation"
+git push origin main
+```
+
+### ルール
 1. Create a new directory under `playground/` for your POC
 2. Add a README.md in your project directory explaining what it does
 3. Document any setup steps and dependencies
+4. WIPの場合はREADMEのタイトルに`[WIP]`を付ける
+
+詳細は [CONTRIBUTING.md](./CONTRIBUTING.md) を参照
 
 ## License
 

@@ -1,0 +1,20 @@
+# コミットメッセージテンプレート
+#
+# タイプ: 簡潔な説明（50文字以内）
+#
+# 詳細説明（必要に応じて）
+# - 何を変更したか
+# - なぜ変更したか
+#
+# タイプの例:
+#   Add:    新機能追加
+#   Fix:    バグ修正
+#   Update: 既存機能の改善
+#   Docs:   ドキュメントのみの変更
+#   WIP:    作業中（動かない可能性あり）
+#   Remove: 不要なコードの削除
+#
+# 例:
+#   Add: medical diagnosis POC with multimodal analysis
+#   Fix: API key validation in basic_chat.py
+#   WIP: implementing travel planner agent
