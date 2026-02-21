@@ -6,7 +6,6 @@ Tokyo Risk - ゲームエンジン
 - 自律エージェントがGemini Function Callingで行動判断
 """
 
-import random
 import json
 from pathlib import Path
 from typing import Optional

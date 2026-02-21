@@ -7,6 +7,7 @@ import os
 import json
 import asyncio
 import time
+import re as _re
 from pathlib import Path
 import base64
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -215,9 +216,6 @@ async def chat_with_ai_commander(request: dict):
     if session_id not in chat_histories:
         chat_histories[session_id] = []
     chat_history = chat_histories[session_id]
-
-    alive_player = sum(1 for a in game_state.agents.values() if a.owner == PLAYER and a.is_alive)
-    alive_ai = sum(1 for a in game_state.agents.values() if a.owner == AI and a.is_alive)
 
     # 各エージェントの詳細状況（current_wardはAgentに存在しないためtarget_wardで代替）
     player_agent_lines = []
@@ -472,8 +470,6 @@ def get_agents_state(session_id: str, since: int = 0):
 # ============================================================
 # 座標 → 地名変換ユーティリティ
 # ============================================================
-import re as _re
-
 _LANDMARKS: dict[str, tuple[float, float]] = {
     "新宿駅前": (35.6896, 139.7006),
     "渋谷駅前": (35.6580, 139.7016),
@@ -608,7 +604,6 @@ def _process_tick(state) -> None:
 async def run_agent_ai_loop(session_id: str):
     """各エージェントが定期的に行動判断を行う"""
     import time
-    import random
 
     if session_id not in sessions:
         return
@@ -634,66 +629,14 @@ async def run_agent_ai_loop(session_id: str):
                 moving_count = sum(1 for a in state.agents.values() if a.state == 'moving')
                 print(f"  [AgentAI] Loop {loop_count}: {moving_count} agents moving")
 
-            # 各エージェントが定期的に行動判断
+            # 全エージェントがGeminiで行動判断（並列実行）
             gemini_targets = []
             for agent_id, agent in list(state.agents.items()):
                 if not agent.is_alive:
                     continue
-                if time.time() - agent.last_action_time < 0.5:
+                if time.time() - agent.last_action_time < 3.0:
                     continue
-
-                if agent_id.endswith(('001', '002', '003')):
-                    # Geminiエージェントは後で並列実行
-                    gemini_targets.append((agent_id, agent))
-                else:
-                    # ルールベース: commander_orderに区名が含まれていれば優先
-                    enemy_owner = AI if agent.owner == PLAYER else PLAYER
-
-                    # チームメイトがすでに向かっている区を除外（重複回避）
-                    teammate_targets = {
-                        a.target_ward
-                        for aid2, a in state.agents.items()
-                        if a.owner == agent.owner and aid2 != agent_id and a.target_ward
-                    }
-
-                    # commander_orderから区名を抽出（プレイヤー側のみ）
-                    order_ward = None
-                    if agent.owner == PLAYER and state.commander_order:
-                        for w in WARDS:
-                            if w in state.commander_order:
-                                order_ward = w
-                                break
-
-                    if order_ward and order_ward not in teammate_targets:
-                        # 命令優先: 指定区へ向かう
-                        lat, lng = WARD_LATLNG[order_ward]
-                        agent.set_destination(lat, lng, order_ward)
-                        agent.thought = f"📡 命令: {order_ward}へ"
-                        agent.last_action_time = time.time()
-                        continue
-
-                    neutral_wards = [
-                        w for w in WARDS
-                        if state.owner.get(w) == NEUTRAL and w not in teammate_targets
-                    ]
-                    enemy_wards = [
-                        w for w in WARDS
-                        if state.owner.get(w) == enemy_owner and w not in teammate_targets
-                    ]
-                    # 中立優先 → 敵 → (重複OKで再探索)
-                    target_pool = neutral_wards or enemy_wards or [
-                        w for w in WARDS if state.owner.get(w) in (enemy_owner, NEUTRAL)
-                    ] or WARDS
-
-                    # 最寄りの区を選択（距離順ソート）
-                    target_pool.sort(
-                        key=lambda w: (WARD_LATLNG[w][0] - agent.lat)**2 + (WARD_LATLNG[w][1] - agent.lng)**2
-                    )
-                    ward = target_pool[0]
-                    lat, lng = WARD_LATLNG[ward]
-                    agent.set_destination(lat, lng, ward)
-                    agent.thought = f"🎯 {ward}へ向かう"
-                    agent.last_action_time = time.time()
+                gemini_targets.append((agent_id, agent))
 
             # GeminiエージェントをgatherでALL並列実行
             if gemini_targets:
@@ -771,8 +714,8 @@ async def live_voice_ws(websocket: WebSocket, session_id: str):
             tool_lines.append(f"{aid}: {tools_str}")
     tool_briefing = "\n".join(tool_lines) if tool_lines else "装備なし"
 
-    system_instruction = f"""あなたは東京リスク作戦の無線通信士です。
-兵士から届いた通信をそのまま日本語で読み上げてください。
+    system_instruction = f"""あなたは東京リスク作戦の副司令官です。
+兵士から届いた通信を読み上げる際、毎回必ず「こちら副司令官。」と名乗ってから内容を伝えてください。
 テキストでの返答は絶対に禁止です。音声のみで応答してください。
 解説・要約・コメントは不要です。受け取った内容をそのまま読んでください。
 SOSは緊迫した声で読んでください。
@@ -850,9 +793,30 @@ SOSは緊迫した声で読んでください。
 
             async def agent_message_injector():
                 last_idx = len(state.log)
+                game_over_announced = False
                 try:
                     while not stop_event.is_set():
                         await asyncio.sleep(2.0)
+
+                        # ゲーム終了後は勝利アナウンスを1回だけ送って注入を停止
+                        victory = state.check_victory()
+                        if victory and not game_over_announced:
+                            game_over_announced = True
+                            if victory == PLAYER:
+                                msg = "作戦完了！プレイヤー部隊が東京23区を制圧しました！ミッション、成功です！"
+                            else:
+                                msg = "作戦失敗…プレイヤー部隊が全滅しました。敵の勝利です。交信を終了します。"
+                            print(f"  [LiveWS] 勝利アナウンス: {msg}")
+                            await live_session.send_client_content(
+                                turns=[{"role": "user", "parts": [{"text": msg}]}],
+                                turn_complete=True
+                            )
+                            # アナウンス後は注入を終了
+                            break
+
+                        if victory:
+                            break
+
                         new_logs = state.log[last_idx:]
                         last_idx = len(state.log)
                         for msg_text in new_logs:
