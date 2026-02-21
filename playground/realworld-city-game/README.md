@@ -58,28 +58,40 @@ APIキーがなくてもデモモードで動作確認できます。
 
 ## Maps Tool について
 
-### 現在の実装
+### 実装: 2段構成
 
-`google-genai` SDK で `GoogleSearch` Tool を使用（Web 経由でマップ情報を取得）:
+**Gemini 3 は Maps Tool 未対応** (2026/02 時点)。Maps Tool は Gemini 2.5 系のみ対応。
+そのため 2 モデルを役割分担させる構成:
 
-```python
-config=types.GenerateContentConfig(
-    tools=[types.Tool(google_search=types.GoogleSearch())],
-)
+```
+Gemini 2.5 Flash + Maps Tool  →  実際の施設名・ルート・費用を取得
+         ↓ (マップデータを渡す)
+Gemini 3 Flash               →  ゲームマスターとして物語化・選択肢生成
 ```
 
-### Gemini 3 の Built-in Maps Tool（利用可能になったら）
-
 ```python
-# hackathon-ideas.md に記載の方法
+# Step 1: Maps Tool でリアルデータ取得 (2.5 Flash)
+maps_response = client.models.generate_content(
+    model="gemini-2.5-flash",
+    contents="渋谷周辺でコンビニを探してください",
+    config=types.GenerateContentConfig(
+        tools=[types.Tool(google_maps=types.GoogleMaps())],
+        tool_config=types.ToolConfig(
+            retrieval_config=types.RetrievalConfig(
+                lat_lng=types.LatLng(latitude=35.658, longitude=139.701)
+            )
+        ),
+    )
+)
+
+# Step 2: Gemini 3 で物語化
 response = client.models.generate_content(
-    model="gemini-3-pro",
-    contents="...",
-    tools=["google_maps", "google_search"],  # Maps Tool 直接指定
+    model="gemini-3-flash-preview",
+    contents=f"ゲームマスターとして以下のデータを使って展開を生成:\n{maps_response.text}",
 )
 ```
 
-Google Maps Tool が有効になると、より精度の高いリアルタイム施設データ・ルート情報が取得できる。
+Maps Tool の料金: $25 / 1K grounded prompts (500 req/day 無料枠あり)
 
 ---
 

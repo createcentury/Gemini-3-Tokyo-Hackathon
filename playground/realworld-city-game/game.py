@@ -82,6 +82,15 @@ SCENARIOS = [
     },
 ]
 
+# 各シナリオロケーションの緯度経度 (Maps Tool の精度向上のため)
+LOCATION_COORDS = {
+    "渋谷駅周辺":   types.LatLng(latitude=35.6580, longitude=139.7016) if USE_NEW_SDK else None,
+    "新宿区":       types.LatLng(latitude=35.6938, longitude=139.7034) if USE_NEW_SDK else None,
+    "池袋周辺":     types.LatLng(latitude=35.7295, longitude=139.7109) if USE_NEW_SDK else None,
+    "秋葉原":       types.LatLng(latitude=35.6984, longitude=139.7731) if USE_NEW_SDK else None,
+    "上野公園周辺": types.LatLng(latitude=35.7148, longitude=139.7731) if USE_NEW_SDK else None,
+}
+
 # ============================================================
 # Gemini クライアント初期化
 # ============================================================
@@ -141,16 +150,33 @@ C) ...
 
     try:
         if sdk_type == "new":
-            # 新SDK: google-genai (Built-in Tools サポート)
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",  # または "gemini-3-pro" if available
-                contents=prompt,
+            # google_maps tool は Gemini 2.5 系が対応 (Gemini 3 は未対応)
+            # Gemini 3 は推論・ストーリー生成に使い、マップ検索は 2.5 Flash で担当する2段構成
+            #
+            # Step 1: Gemini 2.5 Flash + Maps Tool でリアルな東京データを取得
+            maps_response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=f"{location}周辺で「{player_choice}」に関連する実際の施設・ルート・費用を調べてください。具体的な施設名と大まかな費用を含めてください。",
                 config=types.GenerateContentConfig(
-                    tools=[types.Tool(google_search=types.GoogleSearch())],
-                    # NOTE: google_maps tool は Gemini 3 で利用可能
-                    # 現在は google_search で代替 (Web上のマップ情報を検索)
+                    tools=[types.Tool(google_maps=types.GoogleMaps())],
+                    tool_config=types.ToolConfig(
+                        retrieval_config=types.RetrievalConfig(
+                            lat_lng=LOCATION_COORDS.get(location, types.LatLng(latitude=35.6762, longitude=139.6503))
+                        )
+                    ),
+                    max_output_tokens=300,
+                )
+            )
+            maps_data = maps_response.text
+
+            # Step 2: Gemini 3 Flash でゲームマスターとして物語化
+            full_prompt = prompt + f"\n\n【Google Maps から取得したリアルデータ】\n{maps_data}"
+            response = client.models.generate_content(
+                model="gemini-3-flash-preview",
+                contents=full_prompt,
+                config=types.GenerateContentConfig(
                     temperature=0.7,
-                    max_output_tokens=500,
+                    max_output_tokens=1024,
                 )
             )
             return response.text
@@ -158,7 +184,7 @@ C) ...
         else:
             # 旧SDK フォールバック (Maps Tool なし)
             model = genai_legacy.GenerativeModel(
-                "gemini-2.0-flash",
+                "gemini-2.5-flash",
                 system_instruction="あなたは東京の地理に詳しいゲームマスターです。実際の東京の施設・ルート情報を使ってゲームを進行してください。"
             )
             response = model.generate_content(prompt)

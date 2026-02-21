@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>🗾 Tokyo Risk - 東京23区 陣取りゲーム</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Hiragino Kaku Gothic ProN', sans-serif; background: #0a0a14; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+header {
+  background: linear-gradient(135deg, #0d1b2a, #1a2744);
+  border-bottom: 2px solid #e94560;
+  padding: 10px 20px;
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+header h1 { font-size: 1.2rem; color: #e94560; }
+#scoreboard { display: flex; gap: 20px; }
+.score-item { text-align: center; }
+.score-label { font-size: 0.6rem; color: #888; text-transform: uppercase; }
+.score-val { font-size: 1rem; font-weight: bold; }
+#player-score { color: #4fc3f7; }
+#ai-score     { color: #ef5350; }
+#neutral-score{ color: #888; }
+#turn-val     { color: #ffd700; }
+
+.main-layout { display: flex; flex: 1; overflow: hidden; }
+
+/* マップエリア */
+#map-container {
+  flex: 1; position: relative; overflow: hidden;
+  background: radial-gradient(ellipse at center, #0d1b2a 0%, #050910 100%);
+}
+#ward-svg { width: 100%; height: 100%; }
+
+.ward-node {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.ward-node:hover .ward-circle { filter: brightness(1.4); }
+.ward-circle { transition: all 0.2s; }
+.ward-label { font-size: 9px; fill: rgba(255,255,255,0.9); pointer-events: none; text-anchor: middle; dominant-baseline: central; }
+.ward-troops { font-size: 11px; font-weight: bold; fill: white; pointer-events: none; text-anchor: middle; dominant-baseline: central; }
+.ward-selected .ward-circle { stroke: #ffd700 !important; stroke-width: 3 !important; filter: brightness(1.5); }
+
+.edge { stroke: rgba(255,255,255,0.08); stroke-width: 1; }
+
+/* サイドパネル */
+#side-panel {
+  width: 280px; display: flex; flex-direction: column; gap: 8px;
+  padding: 12px; overflow-y: auto; flex-shrink: 0;
+  background: #080814; border-left: 1px solid #1a1a3a;
+}
+
+.panel-card {
+  background: #0f1020; border: 1px solid #1e2040; border-radius: 8px; padding: 12px;
+}
+.panel-title { font-size: 0.7rem; color: #888; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; border-bottom: 1px solid #1e2040; padding-bottom: 6px; }
+
+/* 選択中の区情報 */
+#selected-name { font-size: 1rem; color: #ffd700; margin-bottom: 6px; }
+#selected-owner-badge { display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; margin-bottom: 8px; }
+.owner-player  { background: #1a3a5c; color: #4fc3f7; }
+.owner-ai      { background: #3a1a1a; color: #ef5350; }
+.owner-neutral { background: #2a2a2a; color: #888; }
+
+.stat-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.stat-name { font-size: 0.7rem; color: #888; width: 50px; }
+.stat-bar-bg { flex: 1; height: 6px; background: #1a1a2a; border-radius: 3px; }
+.stat-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.stat-val { font-size: 0.75rem; color: #ccc; width: 20px; text-align: right; }
+
+/* アクションボタン */
+#actions { display: flex; flex-direction: column; gap: 6px; }
+button {
+  cursor: pointer; border: none; border-radius: 6px;
+  padding: 9px 14px; font-size: 0.85rem; font-weight: bold; transition: all 0.2s;
+}
+#btn-attack    { background: #c0392b; color: white; }
+#btn-attack:hover { background: #e74c3c; }
+#btn-reinforce { background: #2471a3; color: white; }
+#btn-reinforce:hover { background: #2980b9; }
+#btn-end-turn  { background: #27ae60; color: white; }
+#btn-end-turn:hover { background: #2ecc71; }
+button:disabled { background: #333 !important; color: #666 !important; cursor: not-allowed; }
+
+#action-hint { font-size: 0.75rem; color: #666; text-align: center; padding: 4px; }
+
+/* ログ */
+#log-list { list-style: none; }
+#log-list li { font-size: 0.72rem; padding: 4px 0; border-bottom: 1px solid #1a1a2a; color: #888; }
+#log-list li.win  { color: #4fc3f7; }
+#log-list li.lose { color: #ef5350; }
+#log-list li.ai   { color: #ef9350; }
+
+/* 収入バー */
+#income-row { display: flex; justify-content: space-between; font-size: 0.8rem; margin-top: 4px; }
+.inc-player { color: #4fc3f7; }
+.inc-ai     { color: #ef5350; }
+
+/* スタート画面 */
+#start-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.92);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; z-index: 100;
+}
+#start-overlay h2 { font-size: 2rem; color: #e94560; }
+#start-overlay p  { color: #888; font-size: 0.9rem; text-align: center; max-width: 400px; }
+#ward-select { background: #0f1020; border: 1px solid #2a2a4a; color: #e0e0e0; padding: 8px 16px; border-radius: 6px; font-size: 1rem; }
+#btn-start { background: #e94560; color: white; padding: 12px 40px; font-size: 1.1rem; }
+#btn-start:hover { background: #c73652; }
+
+/* 勝利オーバーレイ */
+#victory-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); align-items: center; justify-content: center; flex-direction: column; gap: 16px; z-index: 200; }
+#victory-overlay.show { display: flex; }
+#victory-overlay h2 { font-size: 2.5rem; }
+#victory-overlay.player-win h2 { color: #4fc3f7; }
+#victory-overlay.ai-win h2     { color: #ef5350; }
+#btn-restart { background: #e94560; color: white; padding: 12px 32px; }
+</style>
+</head>
+<body>
+
+<!-- スタート画面 -->
+<div id="start-overlay">
+  <h2>🗾 Tokyo Risk</h2>
+  <p>東京23区を舞台にした陣取り戦略ゲーム。<br>
+  各区の<strong style="color:#ffd700">病院・駅・公園・商業施設</strong>の密度が<br>
+  リアルタイムでゲームスタッツになる。</p>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+    <label style="color:#888;font-size:0.8rem">開始地点を選択</label>
+    <select id="ward-select"></select>
+  </div>
+  <button id="btn-start" onclick="startGame()">ゲームスタート</button>
+  <div id="start-loading" style="color:#888;font-size:0.8rem;display:none">Gemini Maps でスタッツ取得中...</div>
+</div>
+
+<!-- 勝利オーバーレイ -->
+<div id="victory-overlay">
+  <h2 id="victory-title"></h2>
+  <p id="victory-msg"></p>
+  <button id="btn-restart" onclick="location.reload()">もう一度プレイ</button>
+</div>
+
+<header>
+  <h1>🗾 Tokyo Risk <span style="font-size:0.7rem;color:#555">Powered by Gemini 3 + Maps</span></h1>
+  <div id="scoreboard">
+    <div class="score-item"><div class="score-label">Turn</div><div class="score-val" id="turn-val">-</div></div>
+    <div class="score-item"><div class="score-label">🔵 あなた</div><div class="score-val" id="player-score">-</div></div>
+    <div class="score-item"><div class="score-label">🔴 AI</div><div class="score-val" id="ai-score">-</div></div>
+    <div class="score-item"><div class="score-label">⚪ 中立</div><div class="score-val" id="neutral-score">-</div></div>
+  </div>
+</header>
+
+<div class="main-layout">
+  <!-- SVG マップ -->
+  <div id="map-container">
+    <svg id="ward-svg" viewBox="0 0 110 95">
+      <g id="edges-layer"></g>
+      <g id="wards-layer"></g>
+    </svg>
+  </div>
+
+  <!-- サイドパネル -->
+  <div id="side-panel">
+    <!-- 選択区情報 -->
+    <div class="panel-card" id="ward-info-card">
+      <div class="panel-title">Selected Ward</div>
+      <div id="selected-name" style="color:#555">区を選択してください</div>
+      <div id="selected-owner-badge" class="owner-neutral">-</div>
+      <div id="troops-info" style="font-size:0.8rem;color:#888;margin-bottom:8px"></div>
+      <div id="stat-bars"></div>
+    </div>
+
+    <!-- アクション -->
+    <div class="panel-card">
+      <div class="panel-title">Actions</div>
+      <div id="actions">
+        <button id="btn-attack"    onclick="doAttack()"    disabled>⚔️ 攻撃する</button>
+        <button id="btn-reinforce" onclick="doReinforce()" disabled>🔧 増援する (収入2消費)</button>
+        <button id="btn-end-turn"  onclick="endTurn()"     disabled>⏭ ターン終了</button>
+      </div>
+      <div id="action-hint">区を選択してください</div>
+    </div>
+
+    <!-- 収入 -->
+    <div class="panel-card">
+      <div class="panel-title">Income</div>
+      <div id="income-row">
+        <span class="inc-player">🔵 あなた: <span id="player-income">-</span></span>
+        <span class="inc-ai">🔴 AI: <span id="ai-income">-</span></span>
+      </div>
+    </div>
+
+    <!-- ログ -->
+    <div class="panel-card" style="flex:1">
+      <div class="panel-title">Battle Log</div>
+      <ul id="log-list"><li style="color:#444">ゲームを開始してください</li></ul>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8766';
+let mapData = null;
+let sessionId = null;
+let gameState = null;
+let selectedWard = null;
+let attackSource = null;
+let phase = 'select'; // 'select' | 'attack'
+
+const OWNER_COLORS = { player: '#1e5f8a', ai: '#8a1e1e', neutral: '#2a2a3a' };
+const OWNER_STROKE = { player: '#4fc3f7', ai: '#ef5350', neutral: '#555' };
+
+// ============================================================
+// 初期化
+// ============================================================
+async function init() {
+  const resp = await fetch(`${API}/map/data`);
+  mapData = await resp.json();
+  buildWardSelect();
+  drawEdges();
+  drawWards();
+}
+
+function buildWardSelect() {
+  const sel = document.getElementById('ward-select');
+  // 山手線内の主要区を先頭に
+  const priority = ['新宿区','渋谷区','千代田区','港区','豊島区','品川区'];
+  const ordered = [...priority, ...mapData.wards.filter(w => !priority.includes(w))];
+  ordered.forEach(w => {
+    const o = document.createElement('option');
+    o.value = w; o.textContent = w;
+    sel.appendChild(o);
+  });
+}
+
+async function startGame() {
+  const ward = document.getElementById('ward-select').value;
+  document.getElementById('start-loading').style.display = 'block';
+  document.getElementById('btn-start').disabled = true;
+
+  const resp = await fetch(`${API}/game/start`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ player_ward: ward })
+  });
+  const data = await resp.json();
+  sessionId = data.session_id;
+  document.getElementById('start-overlay').style.display = 'none';
+  document.getElementById('btn-end-turn').disabled = false;
+  updateState(data.state);
+  addLog(`ゲーム開始: あなた=${data.player_ward} / AI=${data.ai_ward}`, 'win');
+}
+
+// ============================================================
+// SVG 描画
+// ============================================================
+function drawEdges() {
+  const g = document.getElementById('edges-layer');
+  g.innerHTML = '';
+  const pos = mapData.positions;
+  const drawn = new Set();
+  for (const [ward, neighbors] of Object.entries(mapData.adjacency)) {
+    for (const nb of neighbors) {
+      const key = [ward, nb].sort().join('|');
+      if (drawn.has(key)) continue;
+      drawn.add(key);
+      const [x1, y1] = pos[ward];
+      const [x2, y2] = pos[nb];
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+      line.setAttribute('class', 'edge');
+      g.appendChild(line);
+    }
+  }
+}
+
+function drawWards() {
+  const g = document.getElementById('wards-layer');
+  g.innerHTML = '';
+  const pos = mapData.positions;
+  for (const ward of mapData.wards) {
+    const [x, y] = pos[ward];
+    const owner = gameState ? gameState.owner[ward] : 'neutral';
+    const troops = gameState ? gameState.troops[ward] : '';
+    const isSelected = ward === selectedWard;
+    const isAttackSource = ward === attackSource;
+
+    const grp = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    grp.setAttribute('class', `ward-node${isSelected ? ' ward-selected' : ''}`);
+    grp.addEventListener('click', () => onWardClick(ward));
+
+    // 背景円
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', x); circle.setAttribute('cy', y); circle.setAttribute('r', 5);
+    circle.setAttribute('class', 'ward-circle');
+    circle.setAttribute('fill', isAttackSource ? '#ffd700' : OWNER_COLORS[owner]);
+    circle.setAttribute('stroke', OWNER_STROKE[owner]);
+    circle.setAttribute('stroke-width', isSelected ? 2.5 : 1.5);
+    grp.appendChild(circle);
+
+    // 区名ラベル（小）
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', x); label.setAttribute('y', y - 7);
+    label.setAttribute('class', 'ward-label');
+    label.textContent = ward.replace('区', '');
+    grp.appendChild(label);
+
+    // 兵力数
+    const troopTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    troopTxt.setAttribute('x', x); troopTxt.setAttribute('y', y + 1);
+    troopTxt.setAttribute('class', 'ward-troops');
+    troopTxt.textContent = troops || '';
+    grp.appendChild(troopTxt);
+
+    g.appendChild(grp);
+  }
+}
+
+// ============================================================
+// インタラクション
+// ============================================================
+function onWardClick(ward) {
+  if (!gameState) return;
+
+  if (phase === 'attack') {
+    // 攻撃先を選択
+    if (ward === attackSource) {
+      cancelAttack();
+      return;
+    }
+    if (mapData.adjacency[attackSource].includes(ward) && gameState.owner[ward] !== 'player') {
+      selectedWard = ward;
+      drawWards();
+      showAttackConfirm(attackSource, ward);
+      return;
+    }
+    cancelAttack();
+    return;
+  }
+
+  selectedWard = ward;
+  drawWards();
+  showWardInfo(ward);
+  updateButtons(ward);
+}
+
+function showWardInfo(ward) {
+  const stats = mapData.stats[ward] || {};
+  const owner = gameState ? gameState.owner[ward] : 'neutral';
+  const troops = gameState ? gameState.troops[ward] : 0;
+
+  document.getElementById('selected-name').textContent = ward;
+
+  const badge = document.getElementById('selected-owner-badge');
+  const ownerLabels = { player: '🔵 あなたの領地', ai: '🔴 AI の領地', neutral: '⚪ 中立地帯' };
+  badge.textContent = ownerLabels[owner];
+  badge.className = `owner-${owner}`;
+
+  document.getElementById('troops-info').textContent = `兵力: ${troops}`;
+
+  const statColors = { ATK:'#e74c3c', DEF:'#3498db', SPD:'#2ecc71', INC:'#f39c12', REC:'#9b59b6' };
+  const statNames  = { ATK:'攻撃力', DEF:'防御力', SPD:'機動力', INC:'収入力', REC:'回復力' };
+  const statDescs  = { ATK:'商業施設密度', DEF:'病院・警察密度', SPD:'駅・交通密度', INC:'オフィス密度', REC:'公園・緑地密度' };
+
+  const container = document.getElementById('stat-bars');
+  container.innerHTML = '';
+  for (const key of ['ATK','DEF','SPD','INC','REC']) {
+    const val = stats[key] || 5;
+    const row = document.createElement('div');
+    row.className = 'stat-row';
+    row.title = statDescs[key];
+    row.innerHTML = `
+      <span class="stat-name">${statNames[key]}</span>
+      <div class="stat-bar-bg">
+        <div class="stat-bar-fill" style="width:${val*10}%;background:${statColors[key]}"></div>
+      </div>
+      <span class="stat-val">${val}</span>`;
+    container.appendChild(row);
+  }
+}
+
+function updateButtons(ward) {
+  if (!gameState) return;
+  const owner = gameState.owner[ward];
+  const isPlayer = owner === 'player';
+  const canAttack = isPlayer && gameState.troops[ward] > 1;
+  const canReinforce = isPlayer && gameState.income['player'] >= 2;
+
+  document.getElementById('btn-attack').disabled    = !canAttack;
+  document.getElementById('btn-reinforce').disabled = !canReinforce;
+
+  let hint = '';
+  if (!isPlayer) hint = '自分の区を選んでください';
+  else if (!canAttack) hint = '兵力が不足しています（最低2必要）';
+  else hint = `${ward} を選択中。攻撃または増援を選択`;
+  document.getElementById('action-hint').textContent = hint;
+}
+
+function doAttack() {
+  if (!selectedWard || gameState.owner[selectedWard] !== 'player') return;
+  attackSource = selectedWard;
+  phase = 'attack';
+  document.getElementById('action-hint').textContent = `${attackSource} から攻撃先を選択（隣接区をクリック）`;
+  drawWards();
+}
+
+function cancelAttack() {
+  attackSource = null;
+  phase = 'select';
+  drawWards();
+  document.getElementById('action-hint').textContent = '攻撃をキャンセルしました';
+}
+
+async function showAttackConfirm(from, to) {
+  document.getElementById('action-hint').textContent = `${from} → ${to} 攻撃中...`;
+  const resp = await fetch(`${API}/game/attack`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ session_id: sessionId, from_ward: from, to_ward: to })
+  });
+  const data = await resp.json();
+
+  attackSource = null;
+  phase = 'select';
+  selectedWard = null;
+
+  // ログ追加
+  const r = data.attack_result;
+  addLog(r.message, r.won ? 'win' : 'lose');
+  for (const ai_action of data.ai_actions || []) {
+    const ar = ai_action.result;
+    const d  = ai_action.decision;
+    addLog(`🤖 AI: ${d.from||d.ward} → ${d.to||''} (${d.reason}) | ${ar.message||ar.reason}`, 'ai');
+  }
+
+  updateState(data.state);
+}
+
+async function doReinforce() {
+  if (!selectedWard) return;
+  const resp = await fetch(`${API}/game/reinforce`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ session_id: sessionId, ward: selectedWard, amount: 1 })
+  });
+  const data = await resp.json();
+  addLog(data.result.message || data.result.reason, 'win');
+  updateState(data.state);
+}
+
+function endTurn() {
+  // 手動ターン終了（次のターンへ）
+  document.getElementById('action-hint').textContent = 'ターンを終了しました';
+  selectedWard = null;
+  attackSource = null;
+  phase = 'select';
+  drawWards();
+}
+
+// ============================================================
+// 状態更新
+// ============================================================
+function updateState(state) {
+  gameState = state;
+  drawWards();
+  if (selectedWard) { showWardInfo(selectedWard); updateButtons(selectedWard); }
+
+  document.getElementById('turn-val').textContent = state.turn;
+  document.getElementById('player-score').textContent  = state.ward_count.player  + '区';
+  document.getElementById('ai-score').textContent      = state.ward_count.ai      + '区';
+  document.getElementById('neutral-score').textContent = state.ward_count.neutral + '区';
+  document.getElementById('player-income').textContent = state.income.player || 0;
+  document.getElementById('ai-income').textContent     = state.income.ai    || 0;
+
+  if (state.victory) {
+    const overlay = document.getElementById('victory-overlay');
+    overlay.classList.add('show');
+    if (state.victory === 'player') {
+      overlay.classList.add('player-win');
+      document.getElementById('victory-title').textContent = '🎉 勝利！';
+      document.getElementById('victory-msg').textContent = `${state.ward_count.player}区を制圧しました！`;
+    } else {
+      overlay.classList.add('ai-win');
+      document.getElementById('victory-title').textContent = '💀 敗北...';
+      document.getElementById('victory-msg').textContent = 'Gemini AIに東京を制圧されました';
+    }
+  }
+}
+
+function addLog(msg, type = '') {
+  const ul = document.getElementById('log-list');
+  if (ul.children[0]?.style.color === 'rgb(68,68,68)') ul.innerHTML = '';
+  const li = document.createElement('li');
+  li.className = type;
+  li.textContent = msg;
+  ul.insertBefore(li, ul.firstChild);
+  // 最大20件
+  while (ul.children.length > 20) ul.removeChild(ul.lastChild);
+}
+
+window.onload = () => init();
+</script>
+</body>
+</html>

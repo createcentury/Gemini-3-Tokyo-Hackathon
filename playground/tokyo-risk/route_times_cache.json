@@ -1,0 +1,222 @@
+{
+  "世田谷区|大田区": {
+    "seconds": 2554,
+    "movement_cost": 5
+  },
+  "世田谷区|杉並区": {
+    "seconds": 2028,
+    "movement_cost": 5
+  },
+  "世田谷区|渋谷区": {
+    "seconds": 1471,
+    "movement_cost": 5
+  },
+  "世田谷区|目黒区": {
+    "seconds": 1453,
+    "movement_cost": 5
+  },
+  "中央区|千代田区": {
+    "seconds": 1242,
+    "movement_cost": 5
+  },
+  "中央区|台東区": {
+    "seconds": 798,
+    "movement_cost": 3
+  },
+  "中央区|墨田区": {
+    "seconds": 1661,
+    "movement_cost": 5
+  },
+  "中央区|江東区": {
+    "seconds": 860,
+    "movement_cost": 3
+  },
+  "中央区|港区": {
+    "seconds": 702,
+    "movement_cost": 3
+  },
+  "中野区|新宿区": {
+    "seconds": 1462,
+    "movement_cost": 5
+  },
+  "中野区|杉並区": {
+    "seconds": 994,
+    "movement_cost": 4
+  },
+  "中野区|渋谷区": {
+    "seconds": 2103,
+    "movement_cost": 5
+  },
+  "中野区|練馬区": {
+    "seconds": 929,
+    "movement_cost": 4
+  },
+  "中野区|豊島区": {
+    "seconds": 1615,
+    "movement_cost": 5
+  },
+  "北区|文京区": {
+    "seconds": 1097,
+    "movement_cost": 4
+  },
+  "北区|板橋区": {
+    "seconds": 1344,
+    "movement_cost": 5
+  },
+  "北区|荒川区": {
+    "seconds": 1060,
+    "movement_cost": 4
+  },
+  "北区|豊島区": {
+    "seconds": 1284,
+    "movement_cost": 5
+  },
+  "北区|足立区": {
+    "seconds": 1287,
+    "movement_cost": 5
+  },
+  "千代田区|台東区": {
+    "seconds": 1055,
+    "movement_cost": 4
+  },
+  "千代田区|文京区": {
+    "seconds": 554,
+    "movement_cost": 2
+  },
+  "千代田区|新宿区": {
+    "seconds": 1181,
+    "movement_cost": 4
+  },
+  "千代田区|港区": {
+    "seconds": 962,
+    "movement_cost": 4
+  },
+  "台東区|墨田区": {
+    "seconds": 891,
+    "movement_cost": 3
+  },
+  "台東区|文京区": {
+    "seconds": 815,
+    "movement_cost": 3
+  },
+  "台東区|荒川区": {
+    "seconds": 878,
+    "movement_cost": 3
+  },
+  "品川区|大田区": {
+    "seconds": 1483,
+    "movement_cost": 5
+  },
+  "品川区|江東区": {
+    "seconds": 1969,
+    "movement_cost": 5
+  },
+  "品川区|渋谷区": {
+    "seconds": 1575,
+    "movement_cost": 5
+  },
+  "品川区|港区": {
+    "seconds": 1168,
+    "movement_cost": 4
+  },
+  "品川区|目黒区": {
+    "seconds": 1033,
+    "movement_cost": 4
+  },
+  "墨田区|江東区": {
+    "seconds": 1382,
+    "movement_cost": 5
+  },
+  "墨田区|荒川区": {
+    "seconds": 2423,
+    "movement_cost": 5
+  },
+  "墨田区|葛飾区": {
+    "seconds": 2038,
+    "movement_cost": 5
+  },
+  "大田区|江東区": {
+    "seconds": 2168,
+    "movement_cost": 5
+  },
+  "大田区|目黒区": {
+    "seconds": 2091,
+    "movement_cost": 5
+  },
+  "文京区|新宿区": {
+    "seconds": 1258,
+    "movement_cost": 5
+  },
+  "文京区|荒川区": {
+    "seconds": 1238,
+    "movement_cost": 5
+  },
+  "文京区|豊島区": {
+    "seconds": 921,
+    "movement_cost": 4
+  },
+  "新宿区|渋谷区": {
+    "seconds": 1154,
+    "movement_cost": 4
+  },
+  "新宿区|港区": {
+    "seconds": 1515,
+    "movement_cost": 5
+  },
+  "新宿区|豊島区": {
+    "seconds": 1049,
+    "movement_cost": 4
+  },
+  "杉並区|渋谷区": {
+    "seconds": 2048,
+    "movement_cost": 5
+  },
+  "杉並区|練馬区": {
+    "seconds": 1128,
+    "movement_cost": 4
+  },
+  "板橋区|練馬区": {
+    "seconds": 820,
+    "movement_cost": 3
+  },
+  "板橋区|豊島区": {
+    "seconds": 868,
+    "movement_cost": 3
+  },
+  "江戸川区|江東区": {
+    "seconds": 970,
+    "movement_cost": 4
+  },
+  "江戸川区|葛飾区": {
+    "seconds": 823,
+    "movement_cost": 3
+  },
+  "江東区|葛飾区": {
+    "seconds": 1595,
+    "movement_cost": 5
+  },
+  "渋谷区|港区": {
+    "seconds": 1298,
+    "movement_cost": 5
+  },
+  "渋谷区|目黒区": {
+    "seconds": 847,
+    "movement_cost": 3
+  },
+  "練馬区|豊島区": {
+    "seconds": 1526,
+    "movement_cost": 5
+  },
+  "荒川区|葛飾区": {
+    "seconds": 1380,
+    "movement_cost": 5
+  },
+  "荒川区|足立区": {
+    "seconds": 1053,
+    "movement_cost": 4
+  },
+  "葛飾区|足立区": {
+    "seconds": 1516,
+    "movement_cost": 5
+  }
+}

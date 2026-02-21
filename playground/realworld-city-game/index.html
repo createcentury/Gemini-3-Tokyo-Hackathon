@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>🗼 Tokyo Real World Survival Game</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+      background: #0a0a12;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ヘッダー */
+    header {
+      width: 100%;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-bottom: 2px solid #e94560;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 1.4rem; color: #e94560; letter-spacing: 0.05em; }
+    header small { font-size: 0.75rem; color: #888; }
+
+    /* ステータスバー */
+    #status-bar {
+      display: flex; gap: 24px;
+      background: #111122;
+      border-radius: 8px;
+      padding: 8px 20px;
+    }
+    .stat { text-align: center; }
+    .stat-label { font-size: 0.65rem; color: #888; text-transform: uppercase; }
+    .stat-value { font-size: 1.1rem; font-weight: bold; }
+    #money-val { color: #ffd700; }
+    #stamina-val { color: #4caf50; }
+    #day-val { color: #64b5f6; }
+
+    /* メインレイアウト */
+    main {
+      width: 100%;
+      max-width: 900px;
+      padding: 24px 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    /* カード */
+    .card {
+      background: #111122;
+      border: 1px solid #2a2a4a;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .card h2 {
+      font-size: 0.85rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #2a2a4a;
+      padding-bottom: 8px;
+    }
+
+    /* シナリオパネル */
+    #scenario-panel { grid-column: 1 / -1; }
+    #scenario-title {
+      font-size: 1.2rem;
+      color: #e94560;
+      margin-bottom: 8px;
+    }
+    #location-badge {
+      display: inline-block;
+      background: #1a3a5c;
+      color: #64b5f6;
+      font-size: 0.8rem;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-bottom: 12px;
+    }
+    #situation-text {
+      font-size: 1rem;
+      line-height: 1.7;
+      color: #ccc;
+    }
+
+    /* GMレスポンスパネル */
+    #gm-panel { grid-column: 1 / -1; }
+    #gm-response {
+      font-size: 0.95rem;
+      line-height: 1.8;
+      color: #ddd;
+      white-space: pre-wrap;
+      min-height: 80px;
+    }
+    #gm-response.loading {
+      color: #555;
+      font-style: italic;
+    }
+    .powered-by {
+      margin-top: 10px;
+      font-size: 0.7rem;
+      color: #444;
+      text-align: right;
+    }
+
+    /* 入力パネル */
+    #input-panel { grid-column: 1 / -1; }
+    #action-input {
+      width: 100%;
+      background: #0d0d20;
+      border: 1px solid #2a2a4a;
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-size: 1rem;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    #action-input:focus { border-color: #e94560; }
+    #action-input::placeholder { color: #444; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      transition: all 0.2s;
+    }
+    #send-btn {
+      background: #e94560;
+      color: white;
+      flex: 1;
+    }
+    #send-btn:hover { background: #c73652; }
+    #send-btn:disabled { background: #444; cursor: not-allowed; }
+    .quick-btn {
+      background: #1a2a4a;
+      color: #64b5f6;
+      font-size: 0.8rem;
+      padding: 8px 14px;
+    }
+    .quick-btn:hover { background: #243a6a; }
+
+    /* 評価 */
+    #rating-panel { grid-column: 1 / -1; display: none; }
+    .rating-stars { display: flex; gap: 8px; }
+    .star-btn {
+      background: #1a1a3a;
+      color: #888;
+      font-size: 1.4rem;
+      padding: 6px 12px;
+      border-radius: 6px;
+    }
+    .star-btn:hover { color: #ffd700; background: #2a2a4a; }
+    .star-btn.active { color: #ffd700; background: #2a2a4a; }
+
+    /* マップ表示 */
+    #map-panel { font-size: 0.85rem; color: #888; }
+    #map-embed { width: 100%; height: 200px; border-radius: 8px; border: none; margin-top: 8px; }
+    #location-info { margin-top: 8px; font-size: 0.75rem; color: #555; }
+
+    /* ログパネル */
+    #log-panel { font-size: 0.8rem; }
+    #log-list { list-style: none; }
+    #log-list li {
+      padding: 5px 0;
+      border-bottom: 1px solid #1a1a2e;
+      color: #777;
+    }
+    #log-list li .rating-mark { color: #ffd700; }
+
+    /* ゲームオーバー / クリア */
+    #overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 20px;
+    }
+    #overlay.show { display: flex; }
+    #overlay h2 { font-size: 2.5rem; }
+    #overlay.gameover h2 { color: #e94560; }
+    #overlay.clear h2 { color: #ffd700; }
+    #overlay p { color: #aaa; text-align: center; }
+    #restart-btn { background: #e94560; color: white; font-size: 1rem; padding: 12px 32px; }
+
+    /* レスポンシブ */
+    @media (max-width: 600px) {
+      main { grid-template-columns: 1fr; }
+      #scenario-panel, #gm-panel, #input-panel, #rating-panel { grid-column: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🗼 Tokyo Real World Survival Game</h1>
+  <div id="status-bar">
+    <div class="stat">
+      <div class="stat-label">Day</div>
+      <div class="stat-value" id="day-val">1</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">💰 所持金</div>
+      <div class="stat-value" id="money-val">¥5000</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">⚡ スタミナ</div>
+      <div class="stat-value" id="stamina-val">100%</div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- シナリオ -->
+  <div class="card" id="scenario-panel">
+    <h2>Current Scenario</h2>
+    <div id="scenario-title">ゲームを開始してください</div>
+    <div id="location-badge">📍 ---</div>
+    <p id="situation-text">「ゲーム開始」ボタンを押してスタート</p>
+  </div>
+
+  <!-- GM応答 -->
+  <div class="card" id="gm-panel">
+    <h2>Game Master (Gemini 3 Flash + Maps)</h2>
+    <div id="gm-response">Gemini 2.5 Flash が Google Maps でリアルな東京データを取得し、
+Gemini 3 Flash がゲーム展開を生成します。</div>
+    <div class="powered-by">Powered by Gemini 2.5 Flash (Maps) + Gemini 3 Flash (Story)</div>
+  </div>
+
+  <!-- 評価 -->
+  <div class="card" id="rating-panel">
+    <h2>この展開はどうでしたか？</h2>
+    <div class="rating-stars">
+      <button class="star-btn" data-r="1" onclick="rate(1)">★ 1</button>
+      <button class="star-btn" data-r="2" onclick="rate(2)">★ 2</button>
+      <button class="star-btn" data-r="3" onclick="rate(3)">★ 3</button>
+      <button class="star-btn" data-r="4" onclick="rate(4)">★ 4</button>
+      <button class="star-btn" data-r="5" onclick="rate(5)">★ 5</button>
+    </div>
+    <small style="color:#555;margin-top:8px;display:block">評価4以上はFine-tuningデータに自動保存されます</small>
+  </div>
+
+  <!-- 入力 -->
+  <div class="card" id="input-panel">
+    <h2>Your Action</h2>
+    <input id="action-input" type="text" placeholder="行動を入力... 例: コンビニで食料を買う" />
+    <div class="btn-row">
+      <button id="send-btn" onclick="sendAction()" disabled>送信 →</button>
+    </div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="quick-btn" onclick="quickAction('近くのコンビニで食料を買う')">🏪 コンビニ</button>
+      <button class="quick-btn" onclick="quickAction('電車で移動する')">🚃 電車移動</button>
+      <button class="quick-btn" onclick="quickAction('周辺を探索して情報収集する')">🔍 探索</button>
+      <button class="quick-btn" onclick="quickAction('公園や図書館で無料休憩する')">🌳 休憩</button>
+    </div>
+  </div>
+
+  <!-- マップ -->
+  <div class="card" id="map-panel">
+    <h2>📍 Current Location</h2>
+    <iframe id="map-embed"
+      src="https://maps.google.com/maps?q=渋谷駅&output=embed&z=15"
+      allowfullscreen loading="lazy"></iframe>
+    <div id="location-info">渋谷駅周辺 (35.658, 139.702)</div>
+  </div>
+
+  <!-- ログ -->
+  <div class="card" id="log-panel">
+    <h2>📊 学習データログ</h2>
+    <ul id="log-list">
+      <li style="color:#444">インタラクションがここに表示されます</li>
+    </ul>
+  </div>
+</main>
+
+<!-- ゲームオーバー / クリアオーバーレイ -->
+<div id="overlay">
+  <h2 id="overlay-title"></h2>
+  <p id="overlay-msg"></p>
+  <button id="restart-btn" onclick="restartGame()">もう一度プレイ</button>
+</div>
+
+<script>
+  const API = 'http://localhost:8765';
+  let sessionId = null;
+  let currentEntryId = null;
+  let logCount = 0;
+
+  const LOCATION_MAPS = {
+    '渋谷駅周辺':   { q: '渋谷駅', lat: 35.658, lng: 139.702 },
+    '新宿区':       { q: '新宿駅', lat: 35.694, lng: 139.703 },
+    '池袋周辺':     { q: '池袋駅', lat: 35.730, lng: 139.711 },
+    '秋葉原':       { q: '秋葉原駅', lat: 35.698, lng: 139.773 },
+    '上野公園周辺': { q: '上野公園', lat: 35.715, lng: 139.773 },
+  };
+
+  async function startGame() {
+    const res = await fetch(`${API}/session/start`, { method: 'POST' });
+    const data = await res.json();
+    sessionId = data.session_id;
+    showScenario(data.scenario, data.resources);
+    document.getElementById('send-btn').disabled = false;
+    document.getElementById('gm-response').textContent = 'あなたの行動を入力してください...';
+    document.getElementById('log-list').innerHTML = '';
+  }
+
+  function showScenario(scenario, resources) {
+    document.getElementById('scenario-title').textContent = scenario.title;
+    document.getElementById('location-badge').textContent = '📍 ' + scenario.location_hint;
+    document.getElementById('situation-text').textContent = scenario.situation;
+    document.getElementById('day-val').textContent = scenario.resource.day;
+    updateResources(resources);
+    updateMap(scenario.location_hint);
+  }
+
+  function updateResources(r) {
+    document.getElementById('money-val').textContent = '¥' + r.money.toLocaleString();
+    document.getElementById('stamina-val').textContent = r.stamina + '%';
+    const sv = document.getElementById('stamina-val');
+    sv.style.color = r.stamina > 60 ? '#4caf50' : r.stamina > 30 ? '#ff9800' : '#e94560';
+  }
+
+  function updateMap(location) {
+    const loc = LOCATION_MAPS[location] || { q: '東京', lat: 35.676, lng: 139.650 };
+    document.getElementById('map-embed').src =
+      `https://maps.google.com/maps?q=${encodeURIComponent(loc.q)}&output=embed&z=15`;
+    document.getElementById('location-info').textContent =
+      `${location} (${loc.lat}, ${loc.lng})`;
+  }
+
+  async function sendAction() {
+    const input = document.getElementById('action-input');
+    const choice = input.value.trim();
+    if (!choice || !sessionId) return;
+
+    const btn = document.getElementById('send-btn');
+    btn.disabled = true;
+    btn.textContent = '処理中...';
+    document.getElementById('rating-panel').style.display = 'none';
+
+    const gmDiv = document.getElementById('gm-response');
+    gmDiv.className = 'loading';
+    gmDiv.textContent = '⏳ Gemini 2.5 Flash が Google Maps を検索中...\n  → Gemini 3 Flash がゲーム展開を生成中...';
+
+    try {
+      const res = await fetch(`${API}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, player_choice: choice })
+      });
+      const data = await res.json();
+
+      gmDiv.className = '';
+      gmDiv.textContent = data.response_text;
+      currentEntryId = data.entry_id;
+
+      updateResources(data.resources);
+      addLog(choice, data.elapsed_sec);
+
+      // 評価を表示
+      document.getElementById('rating-panel').style.display = 'block';
+      document.querySelectorAll('.star-btn').forEach(b => b.classList.remove('active'));
+
+      input.value = '';
+
+      if (data.game_over) {
+        showOverlay('gameover', '💸 GAME OVER', 'リソースが尽きました...');
+        return;
+      }
+      if (data.clear) {
+        showOverlay('clear', '🎉 CLEAR!', '5日間生き残りました！');
+        return;
+      }
+
+      // 次のシナリオを取得して表示
+      const nextRes = await fetch(`${API}/next_scenario/${sessionId}`);
+      const nextData = await nextRes.json();
+      if (nextData.scenario) {
+        setTimeout(() => showScenario(nextData.scenario, nextData.resources), 1000);
+      }
+
+    } catch (e) {
+      gmDiv.className = '';
+      gmDiv.textContent = 'エラー: ' + e.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '送信 →';
+    }
+  }
+
+  async function rate(r) {
+    if (!sessionId || !currentEntryId) return;
+    document.querySelectorAll('.star-btn').forEach(b => {
+      b.classList.toggle('active', parseInt(b.dataset.r) <= r);
+    });
+    await fetch(`${API}/rate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, entry_id: currentEntryId, rating: r })
+    });
+    const li = document.querySelector('#log-list li:last-child');
+    if (li) li.querySelector('.rating-mark').textContent = ' ★'.repeat(r);
+  }
+
+  function addLog(choice, elapsed) {
+    logCount++;
+    const ul = document.getElementById('log-list');
+    if (ul.children[0]?.style.color === 'rgb(68, 68, 68)') ul.innerHTML = '';
+    const li = document.createElement('li');
+    li.innerHTML = `#${logCount} 「${choice.substring(0,20)}...」 <span style="color:#555">${elapsed.toFixed(1)}s</span> <span class="rating-mark"></span>`;
+    ul.appendChild(li);
+  }
+
+  function quickAction(text) {
+    document.getElementById('action-input').value = text;
+    document.getElementById('action-input').focus();
+  }
+
+  function showOverlay(type, title, msg) {
+    const o = document.getElementById('overlay');
+    o.className = 'show ' + type;
+    document.getElementById('overlay-title').textContent = title;
+    document.getElementById('overlay-msg').textContent = msg;
+  }
+
+  function restartGame() {
+    document.getElementById('overlay').className = '';
+    startGame();
+  }
+
+  document.getElementById('action-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') sendAction();
+  });
+
+  // 起動時に自動スタート
+  window.onload = () => startGame();
+</script>
+</body>
+</html>
