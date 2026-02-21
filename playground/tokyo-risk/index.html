@@ -5,9 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🗾 Tokyo Risk - リアルマップ版</title>
     <style>
+        /* ===== CYBER WAR COLOR PALETTE ===== */
+        :root {
+            --bg-primary:    #000000;
+            --bg-secondary:  #050510;
+            --bg-panel:      rgba(0, 10, 5, 0.92);
+            --neon-green:    #00ff41;
+            --neon-cyan:     #00e5ff;
+            --neon-red:      #ff0055;
+            --neon-orange:   #ffaa00;
+            --neon-yellow:   #ffd700;
+            --text-primary:  #a0ffa0;
+            --text-dim:      rgba(160, 255, 160, 0.5);
+            --border-green:  rgba(0, 255, 65, 0.4);
+            --border-cyan:   rgba(0, 229, 255, 0.4);
+            --glow-green:    0 0 8px rgba(0, 255, 65, 0.6);
+            --glow-cyan:     0 0 8px rgba(0, 229, 255, 0.6);
+            --glow-red:      0 0 8px rgba(255, 0, 85, 0.6);
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Hiragino Kaku Gothic ProN', sans-serif;
+            font-family: 'Courier New', 'Hiragino Kaku Gothic ProN', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             height: 100vh;
             display: flex;
             flex-direction: column;
@@ -16,8 +37,9 @@
 
         /* ヘッダー */
         header {
-            background: linear-gradient(135deg, #0d1b2a, #1a2744);
-            border-bottom: 2px solid #e94560;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--neon-green);
+            box-shadow: 0 0 12px rgba(0, 255, 65, 0.3);
             padding: 10px 20px;
             display: flex;
             align-items: center;
@@ -26,35 +48,75 @@
         }
         header h1 {
             font-size: 1.2rem;
-            color: #e94560;
+            color: var(--neon-green);
             margin: 0;
+            text-shadow: var(--glow-green);
+            letter-spacing: 0.1em;
         }
-        #scoreboard {
+        /* 占領バー（ヘッダー中央） */
+        #territory-display {
+            flex: 1;
+            margin: 0 24px;
+        }
+        #territory-bar-wrap {
             display: flex;
-            gap: 20px;
+            align-items: center;
+            gap: 8px;
         }
-        .score-item {
-            text-align: center;
+        #territory-bar {
+            flex: 1;
+            height: 16px;
+            background: #000;
+            display: flex;
+            overflow: hidden;
+            border: 1px solid rgba(0,255,65,0.2);
+            border-radius: 2px;
         }
-        .score-label {
-            font-size: 0.7rem;
-            color: #888;
-            text-transform: uppercase;
-        }
-        .score-val {
+        #bar-player  { height:100%; width:0%;   background:#00e5ff; transition:width 0.8s ease; box-shadow:0 0 8px #00e5ff; }
+        #bar-neutral { height:100%; width:100%; background:#111;    transition:width 0.8s ease; }
+        #bar-ai      { height:100%; width:0%;   background:#ff0055; transition:width 0.8s ease; box-shadow:0 0 8px #ff0055; }
+        .terr-count {
             font-size: 1.1rem;
             font-weight: bold;
+            font-family: 'Courier New', monospace;
+            min-width: 40px;
+            text-align: center;
+            line-height: 1;
         }
-        #player-score { color: #4fc3f7; }
-        #ai-score { color: #ef5350; }
-        #neutral-score { color: #888; }
-        #turn-val { color: #ffd700; }
+        .terr-unit { font-size: 0.65rem; color: var(--text-dim); }
+        #territory-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.65rem;
+            margin-top: 4px;
+            letter-spacing: 0.05em;
+        }
+
+        /* 右側スコア（兵士数・TURN） */
+        #scoreboard {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+        .score-item { text-align: center; }
+        .score-label {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .score-val { font-size: 1.0rem; font-weight: bold; }
+        #player-score { color: var(--neon-cyan);   text-shadow: var(--glow-cyan); }
+        #ai-score     { color: var(--neon-red);    text-shadow: var(--glow-red);  }
+        #neutral-score { color: #555; }
+        #turn-val     { color: var(--neon-yellow); text-shadow: 0 0 8px rgba(255,215,0,0.6); }
 
         /* メインレイアウト */
         .main-layout {
             display: flex;
             flex: 1;
             overflow: hidden;
+            position: relative;
         }
 
         /* マップエリア */
@@ -69,93 +131,471 @@
             top: 10px;
             left: 10px;
             z-index: 1000;
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--bg-panel);
+            border: 1px solid var(--neon-green);
+            box-shadow: var(--glow-green), inset 0 0 20px rgba(0, 255, 65, 0.03);
             padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            border-radius: 4px;
             max-width: 300px;
+            backdrop-filter: blur(6px);
         }
         .game-controls h2 {
-            font-size: 1rem;
+            font-size: 0.85rem;
             margin-bottom: 10px;
-            color: #333;
+            color: var(--neon-green);
+            text-shadow: var(--glow-green);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
         }
         .game-controls button {
             width: 100%;
-            padding: 10px;
-            margin: 5px 0;
-            border: none;
-            border-radius: 5px;
-            font-size: 0.9rem;
+            padding: 9px;
+            margin: 4px 0;
+            border: 1px solid var(--border-green);
+            border-radius: 2px;
+            font-size: 0.82rem;
+            font-family: 'Courier New', monospace;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.15s;
+            background: transparent;
+            color: var(--neon-green);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .game-controls button:hover:not(:disabled) {
+            background: rgba(0, 255, 65, 0.1);
+            border-color: var(--neon-green);
+            box-shadow: var(--glow-green);
+            color: #fff;
+        }
+        .game-controls button:active:not(:disabled) {
+            background: rgba(0, 255, 65, 0.2);
         }
         #btn-start {
-            background: #4CAF50;
-            color: white;
-        }
-        #btn-start:hover {
-            background: #45a049;
-        }
-        #btn-end-turn {
-            background: #2196F3;
-            color: white;
-        }
-        #btn-end-turn:hover {
-            background: #0b7dda;
-        }
-        #btn-end-turn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
+            border-color: var(--neon-green);
+            color: var(--neon-green);
         }
 
-        /* ゲームログ */
-        #game-log {
-            margin-top: 10px;
-            max-height: 200px;
-            overflow-y: auto;
-            font-size: 0.8rem;
-            padding: 8px;
-            background: #f5f5f5;
-            border-radius: 4px;
-        }
-        .log-entry {
-            padding: 4px 0;
-            border-bottom: 1px solid #ddd;
-        }
-        .log-entry:last-child {
-            border-bottom: none;
-        }
+
 
         /* 選択状態表示 */
         #selection-info {
-            margin: 10px 0;
+            margin: 8px 0;
+            padding: 7px;
+            background: rgba(0, 229, 255, 0.06);
+            border: 1px solid var(--border-cyan);
+            border-radius: 2px;
+            font-size: 0.8rem;
+            color: var(--neon-cyan);
+        }
+
+        /* エージェント通信パネル */
+        #comm-panel {
+            position: fixed;
+            right: 12px;
+            bottom: 12px;
+            width: 280px;
+            max-height: 340px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            pointer-events: none;
+        }
+        #comm-panel-header {
+            background: rgba(0, 5, 10, 0.92);
+            border: 1px solid var(--border-cyan);
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            padding: 5px 10px;
+            font-size: 0.7rem;
+            color: var(--neon-cyan);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            user-select: none;
+        }
+        #comm-messages {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            overflow: hidden;
+            gap: 3px;
+            padding: 6px 0 0 0;
+        }
+        .comm-msg {
+            background: rgba(0, 5, 10, 0.88);
+            border-left: 2px solid transparent;
+            border-radius: 0 2px 2px 0;
+            padding: 5px 10px;
+            font-size: 0.73rem;
+            line-height: 1.45;
+            color: var(--text-primary);
+            font-family: 'Courier New', monospace;
+            animation: commSlideIn 0.3s ease-out;
+            transition: opacity 1.5s ease;
+            backdrop-filter: blur(4px);
+            border-color: var(--border-cyan);
+            word-break: break-all;
+        }
+        .comm-msg.player { border-left-color: var(--neon-cyan); }
+        .comm-msg.ai     { border-left-color: var(--neon-red);  }
+        .comm-msg.fading { opacity: 0; }
+
+        .comm-sender {
+            font-size: 0.68rem;
+            opacity: 0.55;
+            margin-bottom: 1px;
+        }
+
+        @keyframes commSlideIn {
+            from { opacity: 0; transform: translateX(16px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Street View 没入パネル */
+        @keyframes sv-fade-in {
+            from { opacity: 0; transform: scale(0.97); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes sv-fade-out {
+            from { opacity: 1; transform: scale(1); }
+            to   { opacity: 0; transform: scale(0.97); }
+        }
+        @keyframes sv-dot-blink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.2; }
+        }
+        #sv-live-dot { animation: sv-dot-blink 1.2s ease infinite; }
+
+        /* ===== CYBER WAR ANIMATIONS ===== */
+
+        /* 1. scanline — CRT走査線 */
+        @keyframes scanline {
+            0%   { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 4px;
+            background: linear-gradient(
+                transparent,
+                rgba(0, 255, 65, 0.06) 50%,
+                transparent
+            );
+            animation: scanline 6s linear infinite;
+            pointer-events: none;
+            z-index: 99999;
+        }
+
+        /* 2. neonPulse — パネルボーダー明滅 */
+        @keyframes neonPulse {
+            0%, 100% { box-shadow: 0 0 6px rgba(0, 255, 65, 0.4), inset 0 0 6px rgba(0, 255, 65, 0.02); }
+            50%       { box-shadow: 0 0 18px rgba(0, 255, 65, 0.9), inset 0 0 10px rgba(0, 255, 65, 0.06); }
+        }
+        .neon-pulse {
+            animation: neonPulse 2.5s ease-in-out infinite;
+        }
+
+        /* 3. glitchText — タイトル・警告のグリッチ */
+        @keyframes glitchText {
+            0%        { clip-path: inset(0 0 100% 0); transform: translate(0); }
+            5%        { clip-path: inset(20% 0 60% 0); transform: translate(-3px, 1px); color: var(--neon-cyan); }
+            10%       { clip-path: inset(50% 0 30% 0); transform: translate(3px, -1px); color: var(--neon-red); }
+            15%       { clip-path: inset(0 0 100% 0); transform: translate(0); }
+            100%      { clip-path: inset(0 0 100% 0); transform: translate(0); }
+        }
+        @keyframes glitchBase {
+            0%, 90%, 100% { transform: translate(0); color: var(--neon-green); }
+            91%  { transform: translate(-2px, 1px); color: var(--neon-cyan); }
+            93%  { transform: translate(2px, -1px); color: var(--neon-red); }
+            95%  { transform: translate(-1px, 2px); }
+            97%  { transform: translate(1px, -2px); color: var(--neon-green); }
+        }
+        .glitch-text {
+            position: relative;
+            animation: glitchBase 4s ease-in-out infinite;
+        }
+        .glitch-text::before,
+        .glitch-text::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+        }
+        .glitch-text::before {
+            animation: glitchText 4s ease-in-out infinite;
+            color: var(--neon-cyan);
+        }
+        .glitch-text::after {
+            animation: glitchText 4s ease-in-out infinite 0.1s;
+            color: var(--neon-red);
+        }
+
+        /* 4. terminalBlink — カーソル点滅 */
+        @keyframes terminalBlink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0; }
+        }
+        .terminal-cursor::after {
+            content: '_';
+            animation: terminalBlink 0.8s step-end infinite;
+            color: var(--neon-green);
+        }
+
+        /* 5. neonFlash — ボタンクリック時フラッシュ */
+        @keyframes neonFlash {
+            0%   { background: rgba(0, 255, 65, 0.4); box-shadow: 0 0 20px rgba(0, 255, 65, 1); }
+            100% { background: transparent; box-shadow: none; }
+        }
+        .btn-flash {
+            animation: neonFlash 0.25s ease-out forwards;
+        }
+
+        /* 6. dataStream — バトルログ流入 */
+        @keyframes dataStream {
+            from { opacity: 0; transform: translateX(-8px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        .data-stream-entry {
+            animation: dataStream 0.2s ease-out forwards;
+        }
+
+        /* 7. radarSweep — レーダー回転（マップオーバーレイ用） */
+        @keyframes radarSweep {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+
+        /* 8. fadeInScale — モーダル出現 */
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.9); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+
+        /* 9. neonRing — 爆発リング拡散 */
+        @keyframes neonRingExpand {
+            0%   { transform: translate(-50%,-50%) scale(0.2); opacity: 1; }
+            100% { transform: translate(-50%,-50%) scale(3.5); opacity: 0; }
+        }
+        .neon-explosion {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9998;
+        }
+        .neon-explosion .ring {
+            position: absolute;
+            border-radius: 50%;
+            border: 2px solid var(--neon-red);
+            box-shadow: 0 0 8px var(--neon-red);
+            animation: neonRingExpand 0.6s ease-out forwards;
+        }
+        .neon-explosion .ring:nth-child(2) {
+            border-color: var(--neon-orange);
+            box-shadow: 0 0 8px var(--neon-orange);
+            animation-delay: 0.1s;
+            animation-duration: 0.7s;
+        }
+        .neon-explosion .ring:nth-child(3) {
+            border-color: var(--neon-yellow);
+            box-shadow: 0 0 8px var(--neon-yellow);
+            animation-delay: 0.2s;
+            animation-duration: 0.8s;
+        }
+
+        /* ===== STEP 3: PANEL SECTIONS ===== */
+
+        /* セクション仕切り */
+        .panel-section {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(0, 255, 65, 0.2);
+        }
+
+        /* セクション見出し */
+        .panel-section h3 {
+            font-size: 0.78rem;
+            margin: 0 0 7px 0;
+            color: var(--neon-cyan);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        /* テキスト入力 */
+        .cyber-input {
+            width: 100%;
+            padding: 7px 10px;
+            border: 1px solid var(--border-green);
+            border-radius: 2px;
+            font-size: 0.8rem;
+            font-family: 'Courier New', monospace;
+            background: rgba(0, 0, 0, 0.7);
+            color: var(--text-primary);
+            margin-bottom: 6px;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .cyber-input::placeholder { color: rgba(160, 255, 160, 0.3); }
+        .cyber-input:focus {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 6px rgba(0, 255, 65, 0.4);
+        }
+        .cyber-input:disabled {
+            border-color: #1a1a1a;
+            color: #333;
+        }
+
+        /* サブボタン行 */
+        .btn-row { display: flex; gap: 5px; }
+
+        .cyber-btn {
+            flex: 1;
+            padding: 7px;
+            font-size: 0.78rem;
+            font-family: 'Courier New', monospace;
+            border: 1px solid var(--border-green);
+            border-radius: 2px;
+            background: transparent;
+            color: var(--neon-green);
+            cursor: pointer;
+            transition: all 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .cyber-btn:hover:not(:disabled) {
+            background: rgba(0, 255, 65, 0.1);
+            box-shadow: var(--glow-green);
+            color: #fff;
+        }
+        .cyber-btn:disabled {
+            border-color: #1a1a1a;
+            color: #2a2a2a;
+            cursor: not-allowed;
+        }
+        .cyber-btn.cyan {
+            border-color: var(--border-cyan);
+            color: var(--neon-cyan);
+        }
+        .cyber-btn.cyan:hover:not(:disabled) {
+            background: rgba(0, 229, 255, 0.1);
+            box-shadow: var(--glow-cyan);
+        }
+        .cyber-btn.red {
+            border-color: rgba(255, 0, 85, 0.4);
+            color: var(--neon-red);
+        }
+        .cyber-btn.red:hover:not(:disabled) {
+            background: rgba(255, 0, 85, 0.1);
+            box-shadow: var(--glow-red);
+        }
+        .cyber-btn.orange {
+            border-color: rgba(255, 170, 0, 0.4);
+            color: var(--neon-orange);
+        }
+        .cyber-btn.orange:hover:not(:disabled) {
+            background: rgba(255, 170, 0, 0.1);
+            box-shadow: 0 0 8px rgba(255,170,0,0.6);
+        }
+        .cyber-btn.full { flex: none; width: 100%; }
+
+        /* AIチャット履歴 */
+        #ai-chat-history {
+            max-height: 130px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--border-green);
+            border-radius: 2px;
             padding: 8px;
-            background: #e3f2fd;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            color: #1976d2;
+            margin-bottom: 7px;
+            font-size: 0.76rem;
+            color: var(--text-primary);
+        }
+        #ai-chat-history::-webkit-scrollbar { width: 3px; }
+        #ai-chat-history::-webkit-scrollbar-thumb { background: var(--neon-green); }
+        .ai-message strong  { color: var(--neon-cyan); }
+        .user-message       { color: var(--neon-green); text-align: right; }
+        .user-message strong { color: var(--neon-green); }
+
+        /* バトルログ */
+        #battle-log {
+            max-height: 140px;
+            overflow-y: auto;
+            font-size: 0.72rem;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(0, 255, 65, 0.2);
+            color: var(--text-primary);
+            padding: 6px 8px;
+            border-radius: 2px;
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+        }
+        #battle-log::-webkit-scrollbar { width: 3px; }
+        #battle-log::-webkit-scrollbar-thumb { background: var(--neon-green); }
+        .battle-log-label {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        /* 音声ステータス */
+        #voice-status {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            margin-top: 4px;
+            min-height: 1em;
+        }
+
+        /* ヘッダー スコアボード inline color override 修正 */
+        #player-agents { color: var(--neon-cyan) !important; text-shadow: var(--glow-cyan); }
+        #ai-agents     { color: var(--neon-red)  !important; text-shadow: var(--glow-red);  }
+
+        /* 勝敗モーダル */
+        #victory-modal {
+            background: rgba(0, 0, 0, 0.92) !important;
+        }
+        #victory-modal > div {
+            animation: fadeInScale 0.3s ease-out forwards;
         }
     </style>
 </head>
 <body>
     <header>
-        <h1>🗾 Tokyo Risk - リアルマップ版</h1>
+        <h1 class="glitch-text" data-text="TOKYO RISK">TOKYO RISK</h1>
+
+        <!-- 占領バー（中央） -->
+        <div id="territory-display">
+            <div id="territory-bar-wrap">
+                <span class="terr-count" id="player-score" style="color:var(--neon-cyan);text-shadow:var(--glow-cyan)">0</span>
+                <span class="terr-unit">区</span>
+                <div id="territory-bar">
+                    <div id="bar-player"></div>
+                    <div id="bar-neutral"></div>
+                    <div id="bar-ai"></div>
+                </div>
+                <span class="terr-unit">区</span>
+                <span class="terr-count" id="ai-score" style="color:var(--neon-red);text-shadow:var(--glow-red)">0</span>
+            </div>
+            <div id="territory-labels">
+                <span style="color:var(--neon-cyan)">🔵 自軍</span>
+                <span style="color:#555">⚪ 中立 <span id="neutral-score">23</span>区</span>
+                <span style="color:var(--neon-red)">敵軍 🔴</span>
+            </div>
+        </div>
+
+        <!-- 右側：兵士数 + TURN -->
         <div id="scoreboard">
             <div class="score-item">
-                <div class="score-label">Player</div>
-                <div class="score-val" id="player-score">0</div>
+                <div class="score-label">🔵 兵士</div>
+                <div class="score-val" id="player-agents" style="color:var(--neon-cyan)">-/10</div>
             </div>
             <div class="score-item">
-                <div class="score-label">AI</div>
-                <div class="score-val" id="ai-score">0</div>
+                <div class="score-label">🔴 兵士</div>
+                <div class="score-val" id="ai-agents" style="color:var(--neon-red)">-/10</div>
             </div>
-            <div class="score-item">
-                <div class="score-label">Neutral</div>
-                <div class="score-val" id="neutral-score">23</div>
-            </div>
-            <div class="score-item">
-                <div class="score-label">Turn</div>
+            <div class="score-item" style="border-left:1px solid rgba(0,255,65,0.2); padding-left:14px; margin-left:2px;">
+                <div class="score-label">TURN</div>
                 <div class="score-val" id="turn-val">-</div>
             </div>
         </div>
@@ -164,37 +604,229 @@
     <div class="main-layout">
         <div id="map"></div>
 
-        <div class="game-controls">
-            <h2>🎮 ゲームコントロール</h2>
-            <button id="btn-start">ゲーム開始</button>
-            <button id="btn-end-turn" disabled>ターン終了</button>
+        <div class="game-controls neon-pulse">
+            <h2 class="glitch-text" data-text="// TACTICAL CONTROL">&gt; TACTICAL CONTROL</h2>
+
+            <!-- クイックスタート: 戦略選択パネル -->
+            <div id="scenario-panel" style="margin-bottom:10px;">
+                <div style="font-size:0.6rem; color:rgba(0,255,65,0.4); letter-spacing:0.16em; margin-bottom:7px; border-bottom:1px solid rgba(0,255,65,0.1); padding-bottom:4px;">
+                    // DEPLOY STRATEGY — クリックで即開始
+                </div>
+                <!-- ASSAULT -->
+                <div onclick="quickStart('rush')" style="cursor:pointer; border:1px solid rgba(255,0,85,0.4); background:rgba(255,0,85,0.04); padding:8px 10px; margin-bottom:4px; transition:all 0.15s;"
+                     onmouseover="this.style.background='rgba(255,0,85,0.14)';this.style.borderColor='#ff0055'"
+                     onmouseout="this.style.background='rgba(255,0,85,0.04)';this.style.borderColor='rgba(255,0,85,0.4)'">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+                        <span style="color:#ff0055;font-size:0.78rem;letter-spacing:0.1em;font-weight:bold;">⚔ ASSAULT</span>
+                        <span style="color:rgba(255,0,85,0.5);font-size:0.62rem;">▶ START</span>
+                    </div>
+                    <div style="color:rgba(255,160,160,0.65);font-size:0.66rem;margin-bottom:2px;">猛攻型: 敵区を最速で強襲・制圧</div>
+                    <div style="color:rgba(255,0,85,0.35);font-size:0.6rem;font-family:'Courier New';">rapid_move×3 + attack_boost×1 = 85G</div>
+                </div>
+                <!-- SPREAD -->
+                <div onclick="quickStart('spread')" style="cursor:pointer; border:1px solid rgba(0,255,65,0.4); background:rgba(0,255,65,0.04); padding:8px 10px; margin-bottom:4px; transition:all 0.15s;"
+                     onmouseover="this.style.background='rgba(0,255,65,0.14)';this.style.borderColor='#00ff41'"
+                     onmouseout="this.style.background='rgba(0,255,65,0.04)';this.style.borderColor='rgba(0,255,65,0.4)'">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+                        <span style="color:#00ff41;font-size:0.78rem;letter-spacing:0.1em;font-weight:bold;">◈ SPREAD</span>
+                        <span style="color:rgba(0,255,65,0.5);font-size:0.62rem;">▶ START</span>
+                    </div>
+                    <div style="color:rgba(160,255,160,0.65);font-size:0.66rem;margin-bottom:2px;">分散型: 全区を素早く塗りつぶせ</div>
+                    <div style="color:rgba(0,255,65,0.35);font-size:0.6rem;font-family:'Courier New';">rapid_move×5 = 100G</div>
+                </div>
+                <!-- FORTIFY -->
+                <div onclick="quickStart('defend')" style="cursor:pointer; border:1px solid rgba(0,229,255,0.4); background:rgba(0,229,255,0.04); padding:8px 10px; margin-bottom:4px; transition:all 0.15s;"
+                     onmouseover="this.style.background='rgba(0,229,255,0.14)';this.style.borderColor='#00e5ff'"
+                     onmouseout="this.style.background='rgba(0,229,255,0.04)';this.style.borderColor='rgba(0,229,255,0.4)'">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+                        <span style="color:#00e5ff;font-size:0.78rem;letter-spacing:0.1em;font-weight:bold;">🛡 FORTIFY</span>
+                        <span style="color:rgba(0,229,255,0.5);font-size:0.62rem;">▶ START</span>
+                    </div>
+                    <div style="color:rgba(160,230,255,0.65);font-size:0.66rem;margin-bottom:2px;">堅守型: 守りながら確実に拡大</div>
+                    <div style="color:rgba(0,229,255,0.35);font-size:0.6rem;font-family:'Courier New';">shield×3 + medkit×2 = 80G</div>
+                </div>
+                <!-- Custom setup -->
+                <button onclick="startGame()" style="width:100%;padding:5px;cursor:pointer;background:transparent;border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.3);font-family:'Courier New',monospace;font-size:0.65rem;letter-spacing:0.1em;transition:all 0.15s;"
+                        onmouseover="this.style.borderColor='rgba(255,255,255,0.35)';this.style.color='rgba(255,255,255,0.55)'"
+                        onmouseout="this.style.borderColor='rgba(255,255,255,0.12)';this.style.color='rgba(255,255,255,0.3)'">
+                    [ CUSTOM SETUP → ]
+                </button>
+            </div>
+            <button id="btn-start" style="display:none;">[ GAME START ]</button>
 
             <div id="selection-info" style="display: none;">
                 選択中: <span id="selected-ward-name"></span>
             </div>
 
-            <!-- 自然言語コマンド入力 -->
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
-                <h3 style="font-size: 0.9rem; margin-bottom: 8px;">💬 自然言語コマンド</h3>
-                <input
-                    type="text"
-                    id="nl-command"
-                    placeholder="例: 新宿から渋谷に攻撃"
-                    style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem; margin-bottom: 5px;"
+            <!-- 部隊命令 -->
+            <div class="panel-section">
+                <h3>// COMMAND</h3>
+                <input type="text" id="commander-order-input"
+                    class="cyber-input"
+                    placeholder="> 部隊命令（例: 渋谷区を優先占領せよ）..."
                     disabled
                 />
-                <div style="display: flex; gap: 5px;">
-                    <button id="btn-execute-command" disabled style="flex: 1; padding: 8px; font-size: 0.85rem;">実行</button>
-                    <button id="btn-voice-input" disabled style="flex: 1; padding: 8px; font-size: 0.85rem;">🎤 音声</button>
+                <button id="btn-send-order" class="cyber-btn red full" disabled
+                    onclick="sendCommanderOrder()">
+                    [ SEND ORDER ]
+                </button>
+                <div id="voice-status" style="font-size:0.7rem; color:#aaa; min-height:1em; margin-top:4px;"></div>
+            </div>
+
+            <!-- AI副官 -->
+            <div class="panel-section">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:7px;">
+                    <h3 style="margin:0;">// AI ADVISOR</h3>
+                    <button id="btn-analysis" class="cyber-btn orange" disabled style="flex:none; padding:3px 8px; font-size:0.7rem; width:auto;">ANALYZE</button>
+                </div>
+
+                <div id="ai-chat-history" style="display:none;">
+                    <div class="chat-message ai-message" style="margin-bottom:6px;">
+                        <strong>AIDE:</strong> 司令官、準備完了です。
+                    </div>
+                </div>
+
+                <input
+                    type="text"
+                    id="ai-chat-input"
+                    class="cyber-input"
+                    placeholder="> 副官に質問（例: 危険な区は？）..."
+                    disabled
+                />
+                <div class="btn-row">
+                    <button id="btn-send-chat" class="cyber-btn cyan" disabled>SEND</button>
                 </div>
             </div>
 
-            <div id="game-log"></div>
+            <!-- バトルログ -->
+            <div class="panel-section">
+                <div class="battle-log-label">// BATTLE LOG</div>
+                <div id="battle-log"></div>
+            </div>
         </div>
     </div>
 
-    <!-- Google Maps API -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=__GMAPS_API_KEY__&libraries=geometry"></script>
+    <!-- エージェント通信パネル -->
+    <div id="comm-panel">
+        <div id="comm-panel-header">📡 エージェント通信</div>
+        <div id="comm-messages"></div>
+    </div>
+
+    <!-- 戦略バッジ（ゲーム中表示） -->
+    <div id="strategy-badge" style="display:none; position:fixed; left:20px; bottom:20px; z-index:500;
+        background:rgba(0,0,0,0.88); border:1px solid #00ff41; padding:5px 12px;
+        font-family:'Courier New',monospace; font-size:0.7rem; letter-spacing:0.1em; color:#00ff41;
+        box-shadow:0 0 8px rgba(0,255,65,0.3); pointer-events:none;">
+        MY STRATEGY: <span id="strategy-name-badge" style="font-weight:bold;">—</span>
+    </div>
+
+    <!-- 勝敗モーダル -->
+    <!-- マイクFABボタン（地図上に常駐） -->
+    <button id="mic-fab" onclick="toggleMic()" title="クリックでマイクON/OFF"
+        style="display:none; position:fixed; right:20px; bottom:80px; z-index:3000;
+               width:56px; height:56px; border-radius:50%; border:none; cursor:pointer;
+               background:#1565c0; color:white; font-size:1.5rem;
+               box-shadow:0 4px 12px rgba(0,0,0,0.4);
+               transition:background 0.2s, transform 0.1s;">
+        🎤
+    </button>
+
+    <div id="victory-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+        background:rgba(0,0,0,0.92); z-index:20000; align-items:center; justify-content:center;">
+        <canvas id="victory-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></canvas>
+        <div style="
+            background: rgba(0,5,2,0.95);
+            border: 1px solid var(--neon-green);
+            box-shadow: 0 0 40px rgba(0,255,65,0.4), inset 0 0 40px rgba(0,255,65,0.03);
+            border-radius: 4px;
+            padding: 48px 40px;
+            text-align: center;
+            max-width: 420px;
+            width: 90%;
+            position: relative;
+            z-index: 1;
+            font-family: 'Courier New', monospace;
+            animation: fadeInScale 0.4s ease-out forwards;
+        ">
+            <div id="victory-icon" style="font-size:4rem; margin-bottom:12px;"></div>
+            <div id="victory-title" class="glitch-text" data-text="" style="font-size:1.8rem; font-weight:bold; margin-bottom:10px; letter-spacing:0.15em;"></div>
+            <div id="victory-detail" style="color:var(--text-dim); margin-bottom:28px; font-size:0.85rem; line-height:1.8; letter-spacing:0.05em;"></div>
+            <button onclick="document.getElementById('victory-modal').style.display='none'; stopMatrixRain();"
+                class="cyber-btn red"
+                style="padding:10px 32px; font-size:0.9rem; width:auto; flex:none;">
+                [ CLOSE ]
+            </button>
+        </div>
+    </div>
+
+    <!-- Street View 没入パネル（エージェントクリック時に表示） -->
+    <div id="sv-panel" style="
+        display:none; position:fixed; inset:0; z-index:10000;
+        flex-direction:column; background:#000; font-family:'Hiragino Kaku Gothic ProN',sans-serif; color:#eee;
+    ">
+        <!-- ヘッダー：アバター + 情報 + 閉じるボタン -->
+        <div id="sv-header" style="
+            display:flex; align-items:center; gap:14px; padding:10px 18px;
+            background:linear-gradient(90deg,rgba(0,0,0,0.95),rgba(13,27,42,0.98));
+            border-bottom:2px solid #00E5FF; flex-shrink:0;
+        ">
+            <div style="position:relative; flex-shrink:0;">
+                <img id="sv-avatar" src="" alt=""
+                     style="width:56px;height:56px;border-radius:50%;border:3px solid #00E5FF;object-fit:cover;display:block;" />
+                <div id="sv-state-badge" style="
+                    position:absolute; bottom:-4px; left:50%; transform:translateX(-50%);
+                    background:#1a1a2e; border:1px solid rgba(255,255,255,0.2);
+                    border-radius:8px; font-size:9px; padding:1px 5px; white-space:nowrap;
+                "></div>
+            </div>
+            <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;">
+                    <span id="sv-name" style="font-weight:bold; font-size:1.05rem;"></span>
+                    <span id="sv-tools" style="font-size:1rem; letter-spacing:2px;"></span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="flex:1; background:#333; border-radius:4px; height:7px; overflow:hidden;">
+                        <div id="sv-hp-fill" style="height:100%; background:#4caf50; transition:width 0.4s, background 0.4s;"></div>
+                    </div>
+                    <span id="sv-hp-text" style="font-size:0.75rem; color:#aaa; white-space:nowrap;"></span>
+                </div>
+            </div>
+            <button onclick="closeStreetView()" style="
+                background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.2);
+                color:white; border-radius:50%; width:38px; height:38px;
+                cursor:pointer; font-size:1.2rem; flex-shrink:0; line-height:1;
+                transition:background 0.2s;
+            " onmouseover="this.style.background='rgba(255,255,255,0.18)'"
+               onmouseout="this.style.background='rgba(255,255,255,0.08)'">✕</button>
+        </div>
+
+        <!-- Street View 本体 -->
+        <div id="sv-container" style="flex:1; position:relative; overflow:hidden;">
+            <div id="sv-loading" style="
+                position:absolute; inset:0; background:#000;
+                display:flex; align-items:center; justify-content:center;
+                flex-direction:column; gap:14px; z-index:1;
+            ">
+                <div style="font-size:2.5rem;">🏙️</div>
+                <div style="font-size:0.95rem; color:#ccc; font-weight:bold;">東京 3D マップを読み込み中...</div>
+                <div style="font-size:0.75rem; color:#666;">Google Photorealistic 3D Tiles</div>
+            </div>
+        </div>
+
+        <!-- ボトムバー：位置情報 LIVE 表示 -->
+        <div style="
+            display:flex; align-items:center; gap:10px;
+            padding:7px 18px; background:rgba(0,0,0,0.85);
+            border-top:1px solid rgba(255,255,255,0.08); flex-shrink:0; font-size:0.78rem; color:#888;
+        ">
+            <span id="sv-live-dot" style="
+                width:8px; height:8px; border-radius:50%; background:#4caf50; flex-shrink:0;
+            "></span>
+            <span>LIVE</span>
+            <span id="sv-location-text" style="flex:1;"></span>
+            <span id="sv-coords" style="font-family:monospace; opacity:0.6;"></span>
+        </div>
+    </div>
 
     <!-- Game Script -->
     <script>
@@ -203,8 +835,21 @@
         let sessionId = null;
         let gameState = null;
         let wardMarkers = {};
+        let agentMarkers = {};   // フォールバック矢印マーカー（画像なし時）
+        let agentOverlays = {};  // アバター円形オーバーレイ
+        let currentAgentsData = {}; // 最新エージェントデータ（クリックハンドラ用）
+        let AgentAvatarOverlayClass = null; // Maps APIロード後に遅延初期化
         let selectedWard = null;
-        let recognition = null; // 音声認識
+        let agentUpdateInterval = null;  // エージェント更新タイマー
+        let logCursor = 0;       // バトルログの既読位置
+        let victoryShown = false; // 勝利モーダルの重複表示防止
+
+        // 戦略要所（ボーナス価値）
+        const KEY_WARDS = {
+            "新宿区": 5, "渋谷区": 4, "千代田区": 5,
+            "港区": 4, "中央区": 3, "豊島区": 3,
+            "台東区": 2, "文京区": 2,
+        };
 
         // 区の中心座標
         const WARD_CENTERS = {
@@ -254,32 +899,516 @@
             log('🎮 「ゲーム開始」ボタンをクリック！');
         }
 
-        // カスタムマップスタイル（戦場風）
+        // カスタムマップスタイル（サイバー戦場 — 純黒 + neon）
         function getMapStyle() {
             return [
-                {
-                    "featureType": "all",
-                    "stylers": [{"saturation": -60}]
-                },
-                {
-                    "featureType": "road",
-                    "elementType": "geometry",
-                    "stylers": [{"lightness": 20}]
-                },
-                {
-                    "featureType": "water",
-                    "elementType": "geometry",
-                    "stylers": [{"color": "#1a3a52"}]
-                }
+                { "featureType": "all",
+                  "stylers": [{"saturation": -100}, {"lightness": -80}] },
+                { "featureType": "all", "elementType": "labels.text.fill",
+                  "stylers": [{"color": "#00ff41"}, {"lightness": -20}] },
+                { "featureType": "all", "elementType": "labels.text.stroke",
+                  "stylers": [{"color": "#000000"}, {"lightness": -100}] },
+                { "featureType": "road", "elementType": "geometry",
+                  "stylers": [{"color": "#001a0a"}, {"lightness": 5}] },
+                { "featureType": "road.highway", "elementType": "geometry",
+                  "stylers": [{"color": "#003020"}] },
+                { "featureType": "road.highway", "elementType": "geometry.stroke",
+                  "stylers": [{"color": "#00ff41"}, {"lightness": -60}, {"weight": 0.5}] },
+                { "featureType": "road.arterial", "elementType": "geometry.stroke",
+                  "stylers": [{"color": "#00e5ff"}, {"lightness": -80}, {"weight": 0.3}] },
+                { "featureType": "water", "elementType": "geometry",
+                  "stylers": [{"color": "#000d1a"}] },
+                { "featureType": "water", "elementType": "labels.text.fill",
+                  "stylers": [{"color": "#00e5ff"}, {"lightness": -40}] },
+                { "featureType": "poi", "elementType": "geometry",
+                  "stylers": [{"color": "#000a05"}] },
+                { "featureType": "poi", "elementType": "labels",
+                  "stylers": [{"visibility": "off"}] },
+                { "featureType": "transit", "elementType": "geometry",
+                  "stylers": [{"color": "#001505"}] },
+                { "featureType": "landscape", "elementType": "geometry",
+                  "stylers": [{"color": "#000500"}] },
+                { "featureType": "administrative", "elementType": "geometry.stroke",
+                  "stylers": [{"color": "#00ff41"}, {"lightness": -70}, {"weight": 1}] }
             ];
         }
 
-        // ゲーム開始
-        async function startGame() {
+        // ツール定義（サーバーから取得）
+        let TOOLS_DATA = {};
+        let TEAM_BUDGET = 100;
+        // agentTools[i] = ["rapid_move", "shield", ...] (i: 0-9)
+        const agentTools = Array.from({length: 10}, () => []);
+
+        async function loadToolsData() {
+            const res = await fetch('/game/tools');
+            const data = await res.json();
+            TOOLS_DATA = data.tools;
+            TEAM_BUDGET = data.budget;
+        }
+
+        function calcTotalCost() {
+            return agentTools.flat().reduce((sum, tid) => sum + (TOOLS_DATA[tid]?.cost || 0), 0);
+        }
+
+        function toggleTool(agentIdx, toolId) {
+            const arr = agentTools[agentIdx];
+            const pos = arr.indexOf(toolId);
+            const cost = TOOLS_DATA[toolId]?.cost || 0;
+
+            if (pos >= 0) {
+                // 取り外し
+                arr.splice(pos, 1);
+            } else {
+                // 装備（予算チェック）
+                if (calcTotalCost() + cost > TEAM_BUDGET) {
+                    alert(`予算オーバー！残り: ${TEAM_BUDGET - calcTotalCost()}G`);
+                    return;
+                }
+                arr.push(toolId);
+            }
+            renderToolGrid();
+        }
+
+        function renderToolGrid() {
+            const used      = calcTotalCost();
+            const remaining = TEAM_BUDGET - used;
+            const ratio     = Math.max(0, remaining / TEAM_BUDGET);
+
+            // 予算バー + テキスト更新
+            const valEl = document.getElementById('budget-val');
+            const barEl = document.getElementById('budget-bar');
+            if (valEl) {
+                valEl.textContent  = `${remaining}G / ${TEAM_BUDGET}G`;
+                valEl.style.color  = remaining < 0 ? '#ff0055' : remaining < 20 ? '#ffaa00' : '#00ff41';
+            }
+            if (barEl) {
+                barEl.style.width      = (ratio * 100) + '%';
+                barEl.style.background = remaining < 0 ? '#ff0055' : remaining < 20 ? '#ffaa00' : '#00ff41';
+                barEl.style.boxShadow  = remaining < 0
+                    ? '0 0 6px rgba(255,0,85,0.8)'
+                    : remaining < 20 ? '0 0 6px rgba(255,170,0,0.8)'
+                    : '0 0 6px rgba(0,255,65,0.8)';
+            }
+
+            // 各ユニット行のツールボタン更新
+            for (let i = 0; i < 10; i++) {
+                const row = document.getElementById(`tool-row-${i}`);
+                if (!row) continue;
+                row.innerHTML = Object.entries(TOOLS_DATA).map(([tid, tool]) => {
+                    const equipped  = agentTools[i].includes(tid);
+                    const canAfford = calcTotalCost() + tool.cost <= TEAM_BUDGET || equipped;
+                    const border    = equipped  ? '#00ff41' : canAfford ? 'rgba(0,255,65,0.25)' : '#1a1a1a';
+                    const bg        = equipped  ? 'rgba(0,255,65,0.15)' : 'transparent';
+                    const color     = equipped  ? '#00ff41' : canAfford ? 'rgba(160,255,160,0.55)' : '#252525';
+                    const glow      = equipped  ? 'box-shadow:0 0 6px rgba(0,255,65,0.5);' : '';
+                    return `<button
+                        onclick="toggleTool(${i}, '${tid}')"
+                        title="${tool.description} (${tool.cost}G)"
+                        style="padding:3px 7px;cursor:${canAfford ? 'pointer' : 'not-allowed'};
+                            border:1px solid ${border};background:${bg};color:${color};
+                            font-size:0.72rem;white-space:nowrap;
+                            font-family:'Courier New',monospace;transition:all 0.12s;${glow}"
+                    >${tool.icon} ${tool.name} <span style="opacity:0.65;font-size:0.65rem;">${tool.cost}G</span></button>`;
+                }).join('');
+            }
+        }
+
+        // プロンプト設定ダイアログ（サイバー作戦室ブリーフィング）
+        async function showPromptConfigDialog() {
+            closePromptDialog();
+            await loadToolsData();
+
+            const dialog = document.createElement('div');
+            dialog.id = 'prompt-config';
+            dialog.innerHTML = `
+                <!-- オーバーレイ兼スクロールコンテナ -->
+                <div style="
+                    position:fixed;top:0;left:0;width:100%;height:100%;
+                    background:rgba(0,0,0,0.85);z-index:9999;
+                    overflow-y:auto;
+                    padding:20px 0;
+                " onclick="event.target===this&&closePromptDialog()">
+                <div style="
+                    position:relative;
+                    background:#000500;
+                    border:1px solid #00ff41;
+                    box-shadow:0 0 40px rgba(0,255,65,0.3),inset 0 0 60px rgba(0,255,65,0.02);
+                    width:740px;max-width:96vw;
+                    margin:0 auto;
+                    z-index:10000;font-family:'Courier New',monospace;
+                    animation:fadeInScale 0.3s ease-out forwards;
+                ">
+                    <!-- ヘッダーバー -->
+                    <div style="
+                        background:rgba(0,255,65,0.06);
+                        border-bottom:1px solid rgba(0,255,65,0.3);
+                        padding:14px 20px;
+                        display:flex;align-items:center;justify-content:space-between;
+                    ">
+                        <div>
+                            <div style="font-size:0.65rem;color:rgba(0,255,65,0.45);letter-spacing:0.2em;">
+                                TOKYO RISK // CYBER WAR
+                            </div>
+                            <div style="font-size:1.05rem;color:#00ff41;letter-spacing:0.15em;
+                                text-shadow:0 0 10px rgba(0,255,65,0.7);">
+                                &gt; OPERATION BRIEFING
+                            </div>
+                        </div>
+                        <div style="font-size:0.7rem;color:rgba(0,255,65,0.4);text-align:right;line-height:1.8;">
+                            <div>STATUS: <span style="color:#ffaa00;">STANDBY</span></div>
+                            <div id="briefing-clock" style="color:#00e5ff;letter-spacing:0.08em;"></div>
+                        </div>
+                    </div>
+
+                    <div style="padding:16px 20px;">
+                        <!-- ミッション概要 -->
+                        <div style="
+                            border:1px solid rgba(0,229,255,0.2);
+                            background:rgba(0,229,255,0.03);
+                            padding:9px 13px;margin-bottom:13px;
+                            font-size:0.76rem;color:rgba(160,255,160,0.65);line-height:1.7;
+                        ">
+                            <span style="color:#00e5ff;">// MISSION BRIEF:</span>
+                            プロンプトと武装の組み合わせが勝敗を決める。予算
+                            <span style="color:#ffd700;font-weight:bold;">${TEAM_BUDGET}G</span>
+                            以内で 10ユニットを編成してください。
+                        </div>
+
+                        <!-- 予算カウンター -->
+                        <div id="budget-display" style="
+                            display:flex;align-items:center;gap:12px;
+                            background:rgba(0,0,0,0.6);border:1px solid rgba(0,255,65,0.3);
+                            padding:9px 14px;margin-bottom:13px;
+                        ">
+                            <span style="font-size:0.65rem;color:rgba(0,255,65,0.5);
+                                letter-spacing:0.15em;white-space:nowrap;">BUDGET</span>
+                            <span id="budget-val" style="font-size:1.2rem;color:#00ff41;
+                                text-shadow:0 0 10px rgba(0,255,65,0.8);letter-spacing:0.08em;">
+                                ${TEAM_BUDGET}G / ${TEAM_BUDGET}G
+                            </span>
+                            <div style="flex:1;height:4px;background:#0a0a0a;
+                                border:1px solid #111;overflow:hidden;">
+                                <div id="budget-bar" style="height:100%;width:100%;
+                                    background:#00ff41;box-shadow:0 0 6px rgba(0,255,65,0.8);
+                                    transition:width 0.3s,background 0.3s;"></div>
+                            </div>
+                        </div>
+
+                        <!-- 兵器庫 -->
+                        <details style="margin-bottom:13px;">
+                            <summary style="
+                                cursor:pointer;color:#00e5ff;font-size:0.73rem;
+                                letter-spacing:0.1em;padding:6px 0;
+                                border-bottom:1px solid rgba(0,229,255,0.15);list-style:none;
+                            ">&#9654; ARMORY MANIFEST（クリックで展開）</summary>
+                            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;">
+                                ${Object.entries(TOOLS_DATA).map(([tid, tool]) => `
+                                    <div style="
+                                        background:rgba(0,0,0,0.6);
+                                        border:1px solid rgba(0,229,255,0.2);
+                                        padding:6px 10px;min-width:148px;flex:1;
+                                    ">
+                                        <div style="font-size:0.8rem;color:#a0ffa0;">
+                                            ${tool.icon} <strong style="color:#fff;">${tool.name}</strong>
+                                            <span style="color:#ffd700;float:right;">${tool.cost}G</span>
+                                        </div>
+                                        <div style="font-size:0.68rem;color:rgba(160,255,160,0.45);
+                                            margin-top:2px;">${tool.description}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </details>
+
+                        <!-- 全体戦略プロンプト -->
+                        <div style="margin-bottom:13px;">
+                            <div style="font-size:0.68rem;color:#00e5ff;
+                                letter-spacing:0.12em;margin-bottom:5px;">
+                                // GLOBAL STRATEGY DIRECTIVE
+                            </div>
+                            <!-- プリセット戦略ボタン -->
+                            <div style="display:flex;gap:5px;margin-bottom:7px;">
+                                <button onclick="applyPreset('rush')" style="
+                                    flex:1;padding:6px;cursor:pointer;font-size:0.68rem;
+                                    background:rgba(255,0,85,0.08);border:1px solid rgba(255,0,85,0.5);
+                                    color:#ff0055;font-family:'Courier New',monospace;letter-spacing:0.08em;
+                                    transition:all 0.15s;" title="攻撃型: 敵の区を猛スピードで制圧">
+                                    ⚔ ASSAULT
+                                </button>
+                                <button onclick="applyPreset('spread')" style="
+                                    flex:1;padding:6px;cursor:pointer;font-size:0.68rem;
+                                    background:rgba(0,255,65,0.08);border:1px solid rgba(0,255,65,0.5);
+                                    color:#00ff41;font-family:'Courier New',monospace;letter-spacing:0.08em;
+                                    transition:all 0.15s;" title="分散型: 全エージェントが別の区へ素早く展開">
+                                    ◈ SPREAD
+                                </button>
+                                <button onclick="applyPreset('defend')" style="
+                                    flex:1;padding:6px;cursor:pointer;font-size:0.68rem;
+                                    background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.5);
+                                    color:#00e5ff;font-family:'Courier New',monospace;letter-spacing:0.08em;
+                                    transition:all 0.15s;" title="防衛型: 確保した区を固めながら慎重に拡大">
+                                    🛡 FORTIFY
+                                </button>
+                            </div>
+                            <textarea id="global-prompt" rows="3" style="
+                                width:100%;font-size:0.76rem;padding:8px 10px;
+                                background:rgba(0,0,0,0.7);
+                                border:1px solid rgba(0,255,65,0.3);
+                                color:#a0ffa0;resize:vertical;
+                                font-family:'Courier New',monospace;outline:none;line-height:1.6;
+                            ">あなたは東京23区の陣取りゲームの兵士です。
+目標: 敵の区を占領し、味方の支配領域を拡大する。
+味方と協力し、戦略的に行動してください。</textarea>
+                        </div>
+
+                        <!-- ユニット編成 -->
+                        <div style="font-size:0.68rem;color:#00e5ff;
+                            letter-spacing:0.12em;margin-bottom:7px;">
+                            // UNIT DEPLOYMENT — 武装 + 個別指示
+                        </div>
+                        <div style="display:grid;gap:4px;">
+                            ${Array.from({length: 10}, (_, i) => `
+                                <div style="
+                                    background:rgba(0,5,2,0.8);
+                                    border:1px solid rgba(0,255,65,0.12);
+                                    padding:7px 10px;
+                                ">
+                                    <div style="display:flex;align-items:center;
+                                        gap:7px;margin-bottom:5px;">
+                                        <span style="
+                                            border:1px solid #00ff41;color:#00ff41;
+                                            font-size:0.68rem;padding:2px 7px;
+                                            letter-spacing:0.1em;white-space:nowrap;
+                                        ">UNIT_${String(i+1).padStart(3,'0')}</span>
+                                        <div id="tool-row-${i}"
+                                            style="display:flex;flex-wrap:wrap;gap:3px;"></div>
+                                    </div>
+                                    <input id="prompt-${i}" type="text"
+                                        placeholder="> 個別指示 (偵察専門 / 攻撃的 / 防衛重視...)"
+                                        style="
+                                            width:100%;padding:4px 8px;font-size:0.74rem;
+                                            background:rgba(0,0,0,0.5);
+                                            border:1px solid rgba(0,255,65,0.18);
+                                            color:#a0ffa0;
+                                            font-family:'Courier New',monospace;outline:none;
+                                        "
+                                    />
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <!-- 実行ボタン -->
+                        <div style="margin-top:14px;display:flex;gap:7px;">
+                            <button onclick="savePrompts()" style="
+                                flex:1;padding:11px;cursor:pointer;
+                                background:rgba(0,255,65,0.08);
+                                border:1px solid #00ff41;color:#00ff41;
+                                font-family:'Courier New',monospace;
+                                font-size:0.88rem;letter-spacing:0.12em;
+                                text-shadow:0 0 8px rgba(0,255,65,0.6);
+                                box-shadow:0 0 12px rgba(0,255,65,0.15);
+                                transition:all 0.15s;
+                            " onmouseover="this.style.background='rgba(0,255,65,0.18)'"
+                               onmouseout="this.style.background='rgba(0,255,65,0.08)'">
+                                [ DEPLOY — MISSION START ]
+                            </button>
+                            <button onclick="closePromptDialog()" style="
+                                padding:11px 16px;cursor:pointer;background:transparent;
+                                border:1px solid rgba(255,0,85,0.35);
+                                color:rgba(255,0,85,0.65);
+                                font-family:'Courier New',monospace;
+                                font-size:0.82rem;letter-spacing:0.08em;transition:all 0.15s;
+                            " onmouseover="this.style.borderColor='#ff0055';this.style.color='#ff0055'"
+                               onmouseout="this.style.borderColor='rgba(255,0,85,0.35)';this.style.color='rgba(255,0,85,0.65)'">
+                                [ ABORT ]
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            `;
+            document.body.appendChild(dialog);
+            renderToolGrid();
+
+            // リアルタイム時計
+            const clk = document.getElementById('briefing-clock');
+            if (clk) {
+                const tick = () => {
+                    clk.textContent = new Date().toLocaleTimeString('ja-JP', {hour12: false});
+                };
+                tick();
+                dialog._clockId = setInterval(tick, 1000);
+            }
+        }
+
+        // 使用した戦略プリセット（勝利モーダル表示用）
+        let activePresetType = null;
+        const PRESET_LABELS = {
+            rush: '⚔ ASSAULT — 猛攻型',
+            spread: '◈ SPREAD — 分散制圧型',
+            defend: '🛡 FORTIFY — 堅守型',
+        };
+
+        // プリセット戦略をプロンプトに適用
+        function applyPreset(type) {
+            activePresetType = type;
+            const ta = document.getElementById('global-prompt');
+            if (!ta) return;
+            const presets = {
+                rush: `あなたは東京23区の陣取りゲームの精鋭突撃兵です。
+戦略: 最速で敵支配区に突入し、次々と制圧する。
+防衛は最小限にとどめ、常に前進し敵の中枢を狙ってください。
+「敵が守っている区こそ、真っ先に奪え」`,
+                spread: `あなたは東京23区の陣取りゲームの分散展開エージェントです。
+戦略: 中立区（まだ誰も支配していない区）を最優先で確保する。
+他のエージェントと同じ区を狙わず、必ず異なる区へ分散展開してください。
+「地図を埋め尽くせ、空白地帯を残すな」`,
+                defend: `あなたは東京23区の陣取りゲームの堅守型エージェントです。
+戦略: 確保した区を優先的に守りながら、安全な場所から確実に拡大する。
+敵のすぐ近くに単独で飛び込むのは避け、味方と連携しながら隣接区を固めてください。
+「一歩一歩、確実に版図を広げよ」`,
+            };
+            ta.value = presets[type] || ta.value;
+            ta.style.borderColor = type === 'rush' ? '#ff0055' : type === 'spread' ? '#00ff41' : '#00e5ff';
+        }
+
+        // クイックスタートシナリオ定義
+        const SCENARIO_DEFS = {
+            rush: {
+                color: '#ff0055',
+                prompt: `あなたは東京23区の陣取りゲームの精鋭突撃兵です。
+戦略: 最速で敵支配区に突入し、次々と制圧する。
+防衛は最小限にとどめ、常に前進し敵の中枢を狙ってください。
+「敵が守っている区こそ、真っ先に奪え」`,
+                tools: [
+                    ['rapid_move'], ['rapid_move'], ['rapid_move'],
+                    ['attack_boost'], [], [], [], [], [], []
+                ]
+            },
+            spread: {
+                color: '#00ff41',
+                prompt: `あなたは東京23区の陣取りゲームの分散展開エージェントです。
+戦略: 中立区（まだ誰も支配していない区）を最優先で確保する。
+他のエージェントと同じ区を狙わず、必ず異なる区へ分散展開してください。
+「地図を埋め尽くせ、空白地帯を残すな」`,
+                tools: [
+                    ['rapid_move'], ['rapid_move'], ['rapid_move'],
+                    ['rapid_move'], ['rapid_move'], [], [], [], [], []
+                ]
+            },
+            defend: {
+                color: '#00e5ff',
+                prompt: `あなたは東京23区の陣取りゲームの堅守型エージェントです。
+戦略: 確保した区を優先的に守りながら、安全な場所から確実に拡大する。
+敵のすぐ近くに単独で飛び込むのは避け、味方と連携しながら隣接区を固めてください。
+「一歩一歩、確実に版図を広げよ」`,
+                tools: [
+                    ['shield'], ['shield'], ['shield'],
+                    ['medkit'], ['medkit'], [], [], [], [], []
+                ]
+            }
+        };
+
+        async function quickStart(type) {
+            await loadToolsData();
+            activePresetType = type;
+            const scenario = SCENARIO_DEFS[type];
+
+            // シナリオパネルを非表示
+            const panel = document.getElementById('scenario-panel');
+            if (panel) panel.style.display = 'none';
+
+            const prompts = Array(10).fill(scenario.prompt);
+
             try {
                 const response = await fetch('/game/start', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'}
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        player_prompts: prompts,
+                        player_tools: scenario.tools
+                    })
+                });
+                const data = await response.json();
+
+                sessionId = data.session_id;
+                gameState = data.game_state;
+
+                const label = PRESET_LABELS[type] || type;
+                log(`🎮 ゲーム開始！`);
+                log(`⚙ 戦略: ${label}`);
+                log(`プレイヤー: ${data.player_start}`);
+                log(`AI: ${data.ai_start}`);
+
+                updateUI();
+                drawWardMarkers();
+                startAgentUpdates();
+
+                document.getElementById('btn-start').disabled = true;
+
+                // 戦略バッジ表示
+                const badge = document.getElementById('strategy-badge');
+                const badgeName = document.getElementById('strategy-name-badge');
+                if (badge && badgeName) {
+                    badgeName.textContent = label;
+                    badgeName.style.color = scenario.color;
+                    badge.style.borderColor = scenario.color;
+                    badge.style.boxShadow = `0 0 8px ${scenario.color}44`;
+                    badge.style.display = 'block';
+                }
+
+                document.getElementById('ai-chat-input').disabled = false;
+                document.getElementById('btn-send-chat').disabled = false;
+                document.getElementById('btn-analysis').disabled = false;
+                document.getElementById('ai-chat-history').style.display = 'block';
+                document.getElementById('commander-order-input').disabled = false;
+                document.getElementById('btn-send-order').disabled = false;
+                document.getElementById('mic-fab').style.display = 'block';
+                autoStartLiveSession();
+
+                logCursor = 0;
+                victoryShown = false;
+
+            } catch (error) {
+                log(`❌ エラー: ${error.message}`);
+                if (panel) panel.style.display = 'block';
+            }
+        }
+
+        function closePromptDialog() {
+            const dialog = document.getElementById('prompt-config');
+            if (dialog) {
+                if (dialog._clockId) clearInterval(dialog._clockId);
+                dialog.remove();
+            }
+        }
+
+        async function savePrompts() {
+            const globalPrompt = document.getElementById('global-prompt').value;
+            const prompts = [];
+
+            for (let i = 0; i < 10; i++) {
+                const individual = document.getElementById(`prompt-${i}`).value;
+                prompts.push(individual ? `${globalPrompt}\n\n${individual}` : globalPrompt);
+            }
+
+            // 予算チェック
+            const totalCost = calcTotalCost();
+            if (totalCost > TEAM_BUDGET) {
+                alert(`予算オーバー (${totalCost}G > ${TEAM_BUDGET}G)。ツールを減らしてください。`);
+                return;
+            }
+
+            closePromptDialog();
+
+            // ゲーム開始
+            try {
+                const response = await fetch('/game/start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        player_prompts: prompts,
+                        player_tools: agentTools.map(t => [...t])
+                    })
                 });
                 const data = await response.json();
 
@@ -287,26 +1416,720 @@
                 gameState = data.game_state;
 
                 log(`🎮 ゲーム開始！`);
-                log(`プレイヤー: ${gameState.player_start}`);
-                log(`AI: ${gameState.ai_start}`);
+                log(`プレイヤー: ${data.player_start}`);
+                log(`AI: ${data.ai_start}`);
 
                 updateUI();
                 drawWardMarkers();
+                startAgentUpdates();  // エージェント更新開始
 
                 document.getElementById('btn-start').disabled = true;
-                document.getElementById('btn-end-turn').disabled = false;
 
-                // 自然言語コマンド入力を有効化
-                document.getElementById('nl-command').disabled = false;
-                document.getElementById('btn-execute-command').disabled = false;
-                document.getElementById('btn-voice-input').disabled = false;
+                // シナリオパネルを非表示
+                const panel = document.getElementById('scenario-panel');
+                if (panel) panel.style.display = 'none';
+
+                // 戦略バッジ表示
+                const badge = document.getElementById('strategy-badge');
+                const badgeName = document.getElementById('strategy-name-badge');
+                if (badge && badgeName) {
+                    const label = activePresetType ? PRESET_LABELS[activePresetType] : 'CUSTOM SETUP';
+                    const colors = { rush: '#ff0055', spread: '#00ff41', defend: '#00e5ff' };
+                    const color = colors[activePresetType] || '#ffffff';
+                    badgeName.textContent = label;
+                    badgeName.style.color = color;
+                    badge.style.borderColor = color;
+                    badge.style.boxShadow = `0 0 8px ${color}44`;
+                    badge.style.display = 'block';
+                }
+
+                // AIコマンダーチャット有効化
+                document.getElementById('ai-chat-input').disabled = false;
+                document.getElementById('btn-send-chat').disabled = false;
+                document.getElementById('btn-analysis').disabled = false;
+                document.getElementById('ai-chat-history').style.display = 'block';
+
+                // 部隊命令UI有効化
+                document.getElementById('commander-order-input').disabled = false;
+                document.getElementById('btn-send-order').disabled = false;
+
+                // Live API 自動接続 + マイクFAB表示
+                document.getElementById('mic-fab').style.display = 'block';
+                autoStartLiveSession();
+
+                // ログカーソルをリセット
+                logCursor = 0;
+                victoryShown = false;
 
             } catch (error) {
                 log(`❌ エラー: ${error.message}`);
             }
         }
 
-        // 区マーカー描画
+        // ゲーム開始（プロンプトダイアログを表示）
+        async function startGame() {
+            showPromptConfigDialog();
+        }
+
+        // エージェント更新開始
+        function startAgentUpdates() {
+            // 既存の更新タイマーをクリア
+            if (agentUpdateInterval) {
+                clearInterval(agentUpdateInterval);
+            }
+
+            // 100msごとにエージェント位置を取得
+            agentUpdateInterval = setInterval(async () => {
+                if (!sessionId) return;
+
+                try {
+                    const response = await fetch(`/game/agents/${sessionId}?since=${logCursor}`);
+
+                    // 404: セッション消滅 → ポーリング停止
+                    if (response.status === 404) {
+                        clearInterval(agentUpdateInterval);
+                        log('⚠️ セッションが見つかりません。ゲームを再開してください。');
+                        return;
+                    }
+                    if (!response.ok) return;
+
+                    const data = await response.json();
+
+                    updateAgentMarkers(data.agents);
+
+                    // ヘッダーのエージェント数更新
+                    if (data.player_agents !== undefined) {
+                        document.getElementById('player-agents').textContent = `${data.player_agents}/10`;
+                        document.getElementById('ai-agents').textContent = `${data.ai_agents}/10`;
+                    }
+
+                    // 区オーナー更新（変化した区だけマーカーを差分更新）
+                    if (data.owner && gameState) {
+                        const changedWards = [];
+                        for (const [ward, owner] of Object.entries(data.owner)) {
+                            if (gameState.owner[ward] !== owner) {
+                                gameState.owner[ward] = owner;
+                                changedWards.push(ward);
+                            }
+                        }
+                        if (changedWards.length > 0) {
+                            if (data.ward_count) {
+                                gameState.ward_count = data.ward_count;
+                                gameState.player_wards = Object.entries(data.owner)
+                                    .filter(([, o]) => o === 'player').map(([w]) => w);
+                                gameState.ai_wards = Object.entries(data.owner)
+                                    .filter(([, o]) => o === 'ai').map(([w]) => w);
+                            }
+                            updateUI();
+                            // 変化した区のマーカーだけ色を更新（全再描画しない）
+                            changedWards.forEach(w => updateWardMarkerAppearance(w));
+                        }
+                    }
+
+                    // バトルログ追記
+                    if (data.logs && data.logs.length > 0) {
+                        appendBattleLogs(data.logs);
+                    }
+                    // logCursorは常に最新に更新（ログがなくても進める）
+                    if (data.log_count !== undefined) {
+                        logCursor = data.log_count;
+                    }
+
+                    // 勝利判定
+                    if (data.victory && !victoryShown) {
+                        victoryShown = true;
+                        showVictoryModal(data.victory, data.player_agents, data.ai_agents);
+                        clearInterval(agentUpdateInterval);
+                    }
+                } catch (error) {
+                    console.error('エージェント更新エラー:', error);
+                }
+            }, 100);
+        }
+
+        // バトルログを追記
+        function appendBattleLogs(logs) {
+            const panel = document.getElementById('battle-log');
+            if (!panel) return;
+            logs.forEach(entry => {
+                // 📡 エージェント通信はcomm-panelのみ（🆘は両方に表示）
+                if (entry.includes('📡') && !entry.includes('🆘')) {
+                    addCommMessage(entry);
+                    return;
+                }
+
+                const div = document.createElement('div');
+                div.textContent = entry;
+                div.classList.add('data-stream-entry');
+                if (entry.includes('💀') || entry.includes('🆘')) div.style.color = 'var(--neon-red)';
+                else if (entry.includes('⚔️'))  div.style.color = 'var(--neon-orange)';
+                else if (entry.includes('占領')) div.style.color = 'var(--neon-green)';
+                panel.appendChild(div);
+
+                // 🆘📡 はcomm-panelにも流す（緊急通知）
+                if (entry.includes('🆘')) addCommMessage(entry);
+            });
+            panel.scrollTop = panel.scrollHeight;
+            while (panel.children.length > 200) panel.removeChild(panel.firstChild);
+        }
+
+        // 通信パネルにメッセージを追加
+        function addCommMessage(rawLog) {
+            const container = document.getElementById('comm-messages');
+            if (!container) return;
+
+            // "🔵📡 [player_001]: 渋谷区へ向かいます" 形式をパース
+            const isPlayer = rawLog.startsWith('🔵');
+            const match = rawLog.match(/\[([^\]]+)\]:\s*(.+)/);
+            const sender = match ? match[1] : '';
+            const text   = match ? match[2] : rawLog;
+
+            const div = document.createElement('div');
+            div.className = 'comm-msg ' + (isPlayer ? 'player' : 'ai');
+            div.innerHTML = `<div class="comm-sender">${isPlayer ? '🔵' : '🔴'} ${sender}</div>${text}`;
+            container.appendChild(div);
+
+            // 最大8件 — 古いものを削除
+            while (container.children.length > 8) container.removeChild(container.firstChild);
+
+            // 12秒後にフェードアウト → 削除
+            setTimeout(() => {
+                div.classList.add('fading');
+                setTimeout(() => div.remove(), 1600);
+            }, 12000);
+        }
+
+        // ===== Matrix Rain =====
+        let matrixRainId = null;
+
+        function startMatrixRain(isWin) {
+            const canvas = document.getElementById('victory-canvas');
+            if (!canvas) return;
+            canvas.width  = window.innerWidth;
+            canvas.height = window.innerHeight;
+            const ctx = canvas.getContext('2d');
+
+            const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789アイウエオカキクケコサシスセソ@#$%&*<>[]{}01';
+            const fontSize = 13;
+            const cols = Math.floor(canvas.width / fontSize);
+            const drops = Array(cols).fill(1);
+            const neonColor = isWin ? '#00ff41' : '#ff0055';
+
+            function draw() {
+                ctx.fillStyle = 'rgba(0,0,0,0.05)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = neonColor;
+                ctx.font = fontSize + 'px Courier New';
+                for (let i = 0; i < drops.length; i++) {
+                    const char = CHARS[Math.floor(Math.random() * CHARS.length)];
+                    ctx.fillText(char, i * fontSize, drops[i] * fontSize);
+                    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                    drops[i]++;
+                }
+            }
+
+            if (matrixRainId) cancelAnimationFrame(matrixRainId);
+            (function loop() { draw(); matrixRainId = requestAnimationFrame(loop); })();
+        }
+
+        function stopMatrixRain() {
+            if (matrixRainId) { cancelAnimationFrame(matrixRainId); matrixRainId = null; }
+            const canvas = document.getElementById('victory-canvas');
+            if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // 勝利モーダル表示
+        function showVictoryModal(winner, playerAgents, aiAgents) {
+            const modal    = document.getElementById('victory-modal');
+            const isWin    = winner === 'player';
+            const titleEl  = document.getElementById('victory-title');
+            const detailEl = document.getElementById('victory-detail');
+            const iconEl   = document.getElementById('victory-icon');
+
+            // アイコン + テキスト
+            iconEl.textContent = isWin ? '◈' : '☠';
+            const titleText    = isWin ? 'MISSION COMPLETE' : 'SYSTEM COMPROMISED';
+            titleEl.textContent = titleText;
+            titleEl.setAttribute('data-text', titleText);
+            titleEl.style.color = isWin ? 'var(--neon-green)' : 'var(--neon-red)';
+
+            // モーダルボーダー色を勝敗で切替
+            const innerDiv = modal.querySelector('[style*="rgba(0,5,2"]');
+            if (innerDiv) {
+                const c = isWin ? 'var(--neon-green)' : 'var(--neon-red)';
+                const g = isWin ? 'rgba(0,255,65,0.5)' : 'rgba(255,0,85,0.5)';
+                const gi = isWin ? 'rgba(0,255,65,0.04)' : 'rgba(255,0,85,0.04)';
+                innerDiv.style.borderColor = c;
+                innerDiv.style.boxShadow   = `0 0 40px ${g}, inset 0 0 40px ${gi}`;
+            }
+
+            // 詳細テキスト
+            const strategyLabel = activePresetType ? PRESET_LABELS[activePresetType] : null;
+            const strategyColor = activePresetType
+                ? ({rush:'#ff5577', spread:'#00ff41', defend:'#00e5ff'}[activePresetType] || 'var(--neon-yellow)')
+                : 'var(--neon-yellow)';
+            detailEl.innerHTML = `
+                <div style="margin-bottom:8px; letter-spacing:0.1em;">
+                    ${isWin ? '&gt; ENEMY FORCES NEUTRALIZED' : '&gt; ALL UNITS LOST'}
+                </div>
+                ${strategyLabel ? `
+                <div style="margin-bottom:6px; color:${strategyColor}; font-size:0.82rem; letter-spacing:0.08em;">
+                    &gt; YOUR STRATEGY: ${strategyLabel}
+                </div>` : ''}
+                <div style="font-size:0.8rem; opacity:0.6; letter-spacing:0.05em; margin-bottom:${strategyLabel ? '8px' : '0'};">
+                    PLR SURVIVE: ${playerAgents}/10 &nbsp;|&nbsp; AI SURVIVE: ${aiAgents}/10
+                </div>
+                ${strategyLabel ? `
+                <div style="font-size:0.65rem; color:rgba(0,255,65,0.35); letter-spacing:0.1em; border-top:1px solid rgba(0,255,65,0.1); padding-top:7px;">
+                    &gt; 別の戦略カードを選んで再挑戦してみよう
+                </div>` : ''}`;
+
+            modal.style.display = 'flex';
+            startMatrixRain(isWin);
+        }
+
+        // コマンダー命令送信
+        async function sendCommanderOrder() {
+            const input = document.getElementById('commander-order-input');
+            const order = input.value.trim();
+            if (!order || !sessionId) return;
+
+            try {
+                await fetch(`/game/commander-order/${sessionId}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ order })
+                });
+                log(`📡 命令送信: "${order}"`);
+                input.value = '';
+            } catch (e) {
+                log(`❌ 命令送信エラー: ${e.message}`);
+            }
+        }
+
+        // HPに応じたマーカーカラー
+        function agentColor(agent) {
+            const base = agent.owner === 'player' ? [0, 229, 255] : [255, 23, 68];
+            const ratio = agent.health / 100;
+            // HP低下でグレーに近づける
+            return `rgb(${Math.round(base[0]*ratio)},${Math.round(base[1]*ratio)},${Math.round(base[2]*ratio)})`;
+        }
+
+        // OverlayView クラスを遅延初期化（Maps API ロード後のみ有効）
+        // アバター画像は /static/avatars/{agentId}.png を参照（generate_avatars.py で事前生成）
+        function getAgentAvatarOverlayClass() {
+            if (AgentAvatarOverlayClass) return AgentAvatarOverlayClass;
+            AgentAvatarOverlayClass = class extends google.maps.OverlayView {
+                constructor(agentId, owner, lat, lng) {
+                    super();
+                    this.agentId = agentId;
+                    this.owner = owner;
+                    this._lat = lat;
+                    this._lng = lng;
+                    this.div = null;
+                }
+                onAdd() {
+                    const isPlayer   = this.owner === 'player';
+                    const mainColor  = isPlayer ? '#00e5ff' : '#ff0055';
+                    const glowRgba   = isPlayer ? 'rgba(0,229,255,0.8)' : 'rgba(255,0,85,0.8)';
+                    const glowSoft   = isPlayer ? 'rgba(0,229,255,0.3)' : 'rgba(255,0,85,0.3)';
+                    const bgColor    = isPlayer ? 'rgba(0,30,40,0.85)' : 'rgba(40,0,15,0.85)';
+                    const ringAnim   = isPlayer ? 'radarSweep 3s linear infinite' : 'radarSweep 2s linear infinite reverse';
+                    const num = this.agentId.split('_')[1];
+                    const imgUrl = `/static/avatars/${this.agentId}.png`;
+
+                    this.div = document.createElement('div');
+                    this.div.style.cssText = 'position:absolute; cursor:pointer; user-select:none; transition:left 0.1s linear, top 0.1s linear;';
+                    this.div.innerHTML = `
+                        <div style="width:56px; transform:translate(-50%,-50%); position:relative;">
+                            <!-- 外側回転リング -->
+                            <div style="
+                                position:absolute; top:-4px; left:-4px;
+                                width:56px; height:56px; border-radius:50%;
+                                border:1px dashed ${mainColor};
+                                opacity:0.5;
+                                animation:${ringAnim};
+                                pointer-events:none;
+                            "></div>
+                            <!-- メインアバター円 -->
+                            <div style="
+                                width:48px; height:48px; border-radius:50%;
+                                border:2px solid ${mainColor};
+                                box-shadow:0 0 12px ${glowRgba}, 0 0 4px ${glowSoft}, inset 0 0 8px ${glowSoft};
+                                overflow:hidden; position:relative; background:${bgColor};
+                                margin:0 auto;
+                            ">
+                                <img src="${imgUrl}"
+                                     style="width:100%;height:100%;object-fit:cover;"
+                                     onerror="this.style.display='none'" />
+                                <div style="
+                                    position:absolute; inset:0; display:flex;
+                                    align-items:center; justify-content:center;
+                                    font-size:11px; font-weight:bold;
+                                    color:${mainColor}; font-family:'Courier New',monospace;
+                                    pointer-events:none; letter-spacing:0.05em;
+                                ">${num}</div>
+                            </div>
+                            <!-- HP セグメントバー -->
+                            <div id="hp-bar-${this.agentId}" style="
+                                height:3px; background:rgba(0,0,0,0.6);
+                                border:1px solid rgba(255,255,255,0.1);
+                                border-radius:1px; margin-top:3px; overflow:hidden;
+                            ">
+                                <div id="hp-fill-${this.agentId}" style="
+                                    width:100%; height:100%;
+                                    background:${mainColor};
+                                    box-shadow:0 0 4px ${glowRgba};
+                                    transition:width 0.3s, background 0.3s;
+                                "></div>
+                            </div>
+                            <!-- 思考吹き出し -->
+                            <div class="thought-bubble" style="
+                                position:absolute; bottom:54px; left:50%;
+                                transform:translateX(-50%);
+                                background:rgba(0,0,0,0.82); color:#fff;
+                                padding:3px 8px; border-radius:10px;
+                                font-size:10px; white-space:nowrap;
+                                max-width:130px; overflow:hidden; text-overflow:ellipsis;
+                                pointer-events:none; opacity:0; transition:opacity 0.4s;
+                                border:1px solid ${isPlayer ? '#00e5ff' : '#ff0055'};
+                            "></div>
+                        </div>`;
+                    this.div.addEventListener('click', () => {
+                        showAgentStreetView(this.agentId);
+                    });
+                    this.getPanes().overlayMouseTarget.appendChild(this.div);
+                }
+                draw() {
+                    const proj = this.getProjection();
+                    const pt = proj.fromLatLngToDivPixel(
+                        new google.maps.LatLng(this._lat, this._lng)
+                    );
+                    if (this.div && pt) {
+                        this.div.style.left = pt.x + 'px';
+                        this.div.style.top  = pt.y + 'px';
+                    }
+                }
+                setAgentPos(lat, lng) {
+                    this._lat = lat; this._lng = lng;
+                    this.draw();
+                }
+                setHealth(hp) {
+                    const fill = document.getElementById(`hp-fill-${this.agentId}`);
+                    if (!fill) return;
+                    fill.style.width = hp + '%';
+                    // サイバーカラー: 緑→オレンジ→赤
+                    if (hp > 60)      { fill.style.background = '#00ff41'; fill.style.boxShadow = '0 0 4px rgba(0,255,65,0.8)'; }
+                    else if (hp > 30) { fill.style.background = '#ffaa00'; fill.style.boxShadow = '0 0 4px rgba(255,170,0,0.8)'; }
+                    else              { fill.style.background = '#ff0055'; fill.style.boxShadow = '0 0 4px rgba(255,0,85,0.8)'; }
+                }
+                setThought(text) {
+                    if (!text || text === this._lastThought) return;
+                    this._lastThought = text;
+                    const bubble = this.div?.querySelector('.thought-bubble');
+                    if (!bubble) return;
+                    bubble.textContent = text;
+                    bubble.style.opacity = '1';
+                    clearTimeout(this._thoughtTimer);
+                    this._thoughtTimer = setTimeout(() => {
+                        if (bubble) bubble.style.opacity = '0';
+                    }, 5000);
+                }
+                onRemove() {
+                    if (this.div && this.div.parentNode) {
+                        this.div.parentNode.removeChild(this.div);
+                    }
+                    this.div = null;
+                }
+            };
+            return AgentAvatarOverlayClass;
+        }
+
+        // エージェントマーカー更新（常に円形オーバーレイを使用）
+        function updateAgentMarkers(agents) {
+            currentAgentsData = agents;
+
+            // 撃破済みのオーバーレイを削除
+            Object.keys(agentOverlays).forEach(agentId => {
+                if (!agents[agentId]) {
+                    agentOverlays[agentId].setMap(null);
+                    delete agentOverlays[agentId];
+                }
+            });
+
+            const OverlayClass = getAgentAvatarOverlayClass();
+            Object.keys(agents).forEach(agentId => {
+                const agent = agents[agentId];
+                if (agentOverlays[agentId]) {
+                    agentOverlays[agentId].setAgentPos(agent.lat, agent.lng);
+                    agentOverlays[agentId].setHealth(agent.health);
+                    if (agent.thought) agentOverlays[agentId].setThought(agent.thought);
+                } else {
+                    const overlay = new OverlayClass(agentId, agent.owner, agent.lat, agent.lng);
+                    overlay.setMap(map);
+                    agentOverlays[agentId] = overlay;
+                }
+            });
+        }
+
+        // 移動方向の角度を計算
+        function calculateHeading(agent) {
+            if (!agent.destination) return 0;
+
+            const dx = agent.destination.lng - agent.lng;
+            const dy = agent.destination.lat - agent.lat;
+
+            return Math.atan2(dx, dy) * 180 / Math.PI;
+        }
+
+        // エージェント情報を表示
+        // ── Street View 没入パネル ────────────────────────────────────────
+        // ── Google Photorealistic 3D Tiles 一人称視点パネル ─────────────
+        let cesiumViewer   = null;   // CesiumJS Viewer インスタンス
+        let cesiumReady    = false;  // Tileset ロード完了フラグ
+        let svInfoInterval = null;   // パネル情報更新（500ms）
+        let svCamInterval  = null;   // カメラ追従（1000ms）
+        let svAgentId      = null;
+
+        // 東京中心部の WGS84 楕円体高（地表 ≈ 40m + 目線 1.7m）
+        const TOKYO_EYE_H = 42.0;
+        // 再利用する Google Maps API キー
+        const GMAPS_KEY   = '__GMAPS_API_KEY__';
+
+        const SV_STATE_JA = {
+            idle: '⏸ 待機中', moving: '🏃 移動中', attacking: '⚔️ 攻撃中',
+            defending: '🛡️ 防衛中', patrolling: '👁️ 巡回中', dead: '💀 撃破'
+        };
+
+        // CesiumJS ライブラリを動的ロード（初回のみ）
+        function _loadCesiumLib() {
+            if (window.Cesium) return Promise.resolve();
+            return new Promise((res, rej) => {
+                // CSS
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = 'https://cesium.com/downloads/cesiumjs/releases/1.121/Build/Cesium/Widgets/widgets.css';
+                document.head.appendChild(link);
+                // JS
+                const s = document.createElement('script');
+                s.src = 'https://cesium.com/downloads/cesiumjs/releases/1.121/Build/Cesium/Cesium.js';
+                s.onload = res; s.onerror = rej;
+                document.head.appendChild(s);
+            });
+        }
+
+        // Cesium Viewer + Google 3D Tiles を初期化（初回のみ）
+        async function _initCesium() {
+            if (cesiumViewer) return;
+
+            // Cesium Ion token（Google 3D Tiles 使用時は Ion 不要だが設定しないと警告が出る）
+            Cesium.Ion.defaultAccessToken =
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' +
+                'eyJqdGkiOiI0YjNhNmQ2My1iM2QyLTRjYTMtOGZkZS1kZTc5OWFkYjFiNzQiLCJpZCI6MjU5LCJpYXQiOjE1NzYyNzc0Njl9.' +
+                'XQdlbwELF5_Yjzj7-BLFhWNH0HxhGqGK-8sRhC9Fjw';
+
+            // Viewer 生成（余計な UI を全部オフ）
+            const creditDiv = document.createElement('div'); // クレジット非表示
+            cesiumViewer = new Cesium.Viewer('sv-container', {
+                imageryProvider:       false,
+                baseLayerPicker:       false,
+                geocoder:              false,
+                homeButton:            false,
+                sceneModePicker:       false,
+                navigationHelpButton:  false,
+                animation:             false,
+                timeline:              false,
+                fullscreenButton:      false,
+                infoBox:               false,
+                selectionIndicator:    false,
+                creditContainer:       creditDiv,
+            });
+            cesiumViewer.imageryLayers.removeAll();
+
+            // Google Photorealistic 3D Tiles をロード
+            const tileset = await Cesium.Cesium3DTileset.fromUrl(
+                `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GMAPS_KEY}`
+            );
+            cesiumViewer.scene.primitives.add(tileset);
+            cesiumReady = true;
+
+            // 初期カメラ（東京上空から入ってくる演出）
+            cesiumViewer.scene.screenSpaceCameraController.enableInputs = false; // 操作ロック（後で解除）
+        }
+
+        // エージェントの一人称視点に飛ぶ
+        function _flyToAgent(agent, duration = 1.0) {
+            if (!cesiumViewer) return;
+            const heading = agent.destination
+                ? google.maps.geometry.spherical.computeHeading(
+                    new google.maps.LatLng(agent.lat, agent.lng),
+                    new google.maps.LatLng(agent.destination.lat, agent.destination.lng))
+                : (cesiumViewer.camera.heading * 180 / Math.PI); // 現在の向きを維持
+
+            cesiumViewer.camera.flyTo({
+                destination: Cesium.Cartesian3.fromDegrees(agent.lng, agent.lat, TOKYO_EYE_H),
+                orientation: {
+                    heading: Cesium.Math.toRadians(heading),
+                    pitch:   Cesium.Math.toRadians(-5),   // 少し下向き（歩行感）
+                    roll:    0.0,
+                },
+                duration,
+                easingFunction: Cesium.EasingFunction.LINEAR_NONE,
+            });
+        }
+
+        // メイン：エージェントの丸をクリックしたときに呼ばれる
+        async function showAgentStreetView(agentId) {
+            const agent = currentAgentsData[agentId];
+            if (!agent) return;
+            svAgentId = agentId;
+
+            const isPlayer    = agent.owner === 'player';
+            const borderColor = isPlayer ? '#00E5FF' : '#FF1744';
+            const glowColor   = isPlayer ? 'rgba(0,229,255,0.4)' : 'rgba(255,23,68,0.4)';
+
+            // パネル表示
+            const panel = document.getElementById('sv-panel');
+            panel.style.display = 'flex';
+            panel.style.animation = 'sv-fade-in 0.3s ease forwards';
+            document.getElementById('sv-header').style.borderBottomColor = borderColor;
+            const avatarEl = document.getElementById('sv-avatar');
+            avatarEl.src = `/static/avatars/${agentId}.png`;
+            avatarEl.style.borderColor = borderColor;
+            avatarEl.style.boxShadow   = `0 0 12px ${glowColor}`;
+            _updateSVInfo(agent);
+
+            const loadingEl = document.getElementById('sv-loading');
+            loadingEl.style.display = 'flex';
+
+            try {
+                // 1) Cesium JS ライブラリをロード（初回のみ数秒かかる）
+                await _loadCesiumLib();
+                // 2) Viewer + Google 3D Tiles を初期化（初回のみ）
+                await _initCesium();
+            } catch (e) {
+                console.error('Cesium init failed:', e);
+                loadingEl.querySelector('div').textContent = '⚠️ 3D Tiles の読み込みに失敗しました';
+                return;
+            }
+
+            loadingEl.style.display = 'none';
+
+            // 3) 操作を開放し、一人称視点へ飛ぶ（初回はドラマチックに上空から）
+            cesiumViewer.scene.screenSpaceCameraController.enableInputs = true;
+            _flyToAgent(agent, cesiumReady ? 1.2 : 0);
+
+            // 4) インターバル設定
+            if (svInfoInterval) clearInterval(svInfoInterval);
+            svInfoInterval = setInterval(() => {
+                const a = currentAgentsData[svAgentId];
+                if (a) _updateSVInfo(a);
+            }, 500);
+
+            if (svCamInterval) clearInterval(svCamInterval);
+            svCamInterval = setInterval(() => {
+                const a = currentAgentsData[svAgentId];
+                if (a && a.state === 'moving') _flyToAgent(a, 1.0);
+            }, 1200);
+        }
+
+        function _updateSVInfo(agent) {
+            const hpColor  = agent.health > 60 ? '#4caf50' : agent.health > 30 ? '#ff9800' : '#f44336';
+            const isPlayer = agent.owner === 'player';
+
+            document.getElementById('sv-name').textContent        = agent.id;
+            document.getElementById('sv-name').style.color        = isPlayer ? '#00E5FF' : '#FF1744';
+            document.getElementById('sv-hp-fill').style.width     = agent.health + '%';
+            document.getElementById('sv-hp-fill').style.background = hpColor;
+            document.getElementById('sv-hp-text').textContent     = `HP ${agent.health}/100`;
+            document.getElementById('sv-state-badge').textContent  = SV_STATE_JA[agent.state] || agent.state;
+            document.getElementById('sv-tools').textContent       =
+                (agent.tools || []).map(tid => TOOLS_DATA[tid]?.icon || '').join('');
+            document.getElementById('sv-coords').textContent      =
+                `${agent.lat.toFixed(5)}, ${agent.lng.toFixed(5)}`;
+            document.getElementById('sv-location-text').textContent = agent.target_ward
+                ? `📍 ${agent.target_ward} へ向かっています`
+                : '📍 現在地を警戒中';
+        }
+
+        function closeStreetView() {
+            if (svInfoInterval) { clearInterval(svInfoInterval); svInfoInterval = null; }
+            if (svCamInterval)  { clearInterval(svCamInterval);  svCamInterval  = null; }
+            svAgentId = null;
+            const panel = document.getElementById('sv-panel');
+            panel.style.animation = 'sv-fade-out 0.25s ease forwards';
+            setTimeout(() => { panel.style.display = 'none'; }, 240);
+        }
+
+        // Escape キーでも閉じられる
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeStreetView();
+        });
+        // ──────────────────────────────────────────────────────────────────
+
+        function showAgentInfo(agentId, agent) {
+            const isPlayer = agent.owner === 'player';
+            const hpColor = agent.health > 60 ? '#4caf50' : agent.health > 30 ? '#ff9800' : '#f44336';
+            const toolIcons = (agent.tools || []).map(tid => {
+                const t = TOOLS_DATA[tid];
+                return t ? `<span title="${t.name}: ${t.description}">${t.icon}</span>` : '';
+            }).join(' ');
+
+            const infoWindow = new google.maps.InfoWindow({
+                content: `
+                    <div style="padding:10px; min-width:180px; font-family:sans-serif;">
+                        <div style="font-weight:bold; font-size:1rem; margin-bottom:8px;
+                            color:${isPlayer ? '#0288d1' : '#d32f2f'};">
+                            ${agentId}
+                        </div>
+                        <div style="margin-bottom:6px;">
+                            <div style="font-size:0.75rem; color:#666; margin-bottom:2px;">HP</div>
+                            <div style="background:#ddd; border-radius:4px; height:10px; overflow:hidden;">
+                                <div style="background:${hpColor}; width:${agent.health}%; height:100%;
+                                    transition:width 0.3s;"></div>
+                            </div>
+                            <div style="font-size:0.8rem; margin-top:2px;">${agent.health}/100</div>
+                        </div>
+                        <div style="font-size:0.8rem; color:#333;">
+                            <div>⚔️ ATK ${agent.attack} &nbsp; 🛡️ DEF -${agent.defense_pct}%</div>
+                            <div>状態: ${agent.state}</div>
+                            ${agent.target_ward ? `<div>目標: ${agent.target_ward}</div>` : ''}
+                            ${toolIcons ? `<div style="margin-top:6px; font-size:1.1rem;">${toolIcons}</div>` : ''}
+                        </div>
+                    </div>
+                `
+            });
+            infoWindow.setPosition({lat: agent.lat, lng: agent.lng});
+            infoWindow.open(map);
+        }
+
+        // 特定の区マーカーのみ色・ラベルを更新（占領時の差分更新用）
+        function updateWardMarkerAppearance(wardName) {
+            const marker = wardMarkers[wardName];
+            if (!marker) return;
+            const troops = gameState.troops[wardName] || 0;
+            const owner = getOwner(wardName);
+            const neonColor  = getOwnerColor(owner);
+            const strokeClr  = getOwnerStroke(owner);
+            const labelColor = owner === 'neutral' ? '#555' : '#ffffff';
+            marker.setIcon({
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 20,
+                fillColor: neonColor,
+                fillOpacity: owner === 'neutral' ? 0.15 : 0.25,
+                strokeColor: strokeClr,
+                strokeWeight: owner === 'neutral' ? 1 : 2
+            });
+            marker.setLabel({
+                text: troops.toString(),
+                color: labelColor,
+                fontSize: '13px',
+                fontWeight: 'bold',
+                fontFamily: 'Courier New, monospace'
+            });
+        }
+
+        // 区マーカー描画（初期生成 or 全再描画）
         function drawWardMarkers() {
             // 既存マーカーをクリア
             Object.values(wardMarkers).forEach(marker => marker.setMap(null));
@@ -317,24 +2140,32 @@
                 const troops = gameState.troops[wardName] || 0;
                 const owner = getOwner(wardName);
 
+                const neonColor  = getOwnerColor(owner);
+                const strokeClr  = getOwnerStroke(owner);
+                const labelColor = owner === 'neutral' ? '#555' : '#ffffff';
+                const isKey      = wardName in KEY_WARDS;
+                const keyValue   = KEY_WARDS[wardName] || 0;
+
                 const marker = new google.maps.Marker({
                     position: position,
                     map: map,
                     title: wardName,
                     label: {
                         text: troops.toString(),
-                        color: 'white',
-                        fontSize: '14px',
-                        fontWeight: 'bold'
+                        color: isKey ? '#ffd700' : labelColor,
+                        fontSize: isKey ? '14px' : '13px',
+                        fontWeight: 'bold',
+                        fontFamily: 'Courier New, monospace'
                     },
                     icon: {
                         path: google.maps.SymbolPath.CIRCLE,
-                        scale: 20,
-                        fillColor: getOwnerColor(owner),
-                        fillOpacity: 0.8,
-                        strokeColor: '#ffffff',
-                        strokeWeight: 2
-                    }
+                        scale: isKey ? 24 : 20,
+                        fillColor: neonColor,
+                        fillOpacity: owner === 'neutral' ? (isKey ? 0.25 : 0.15) : 0.25,
+                        strokeColor: isKey ? '#ffd700' : strokeClr,
+                        strokeWeight: isKey ? 3 : (owner === 'neutral' ? 1 : 2)
+                    },
+                    zIndex: isKey ? 10 : 1
                 });
 
                 // クリックイベント
@@ -359,10 +2190,13 @@
         // 区の詳細情報HTML生成
         function getWardInfoHTML(wardName, troops, owner) {
             const ownerText = owner === 'player' ? '🔵 プレイヤー' : owner === 'ai' ? '🔴 AI' : '⚪ 中立';
+            const keyValue  = KEY_WARDS[wardName];
+            const keyBadge  = keyValue ? `<div style="color:#ffd700; font-weight:bold;">⭐ 戦略要所 (価値:${keyValue})</div>` : '';
             return `
                 <div style="padding: 5px; min-width: 150px;">
                     <h3 style="margin: 0 0 8px 0; font-size: 14px;">${wardName}</h3>
                     <div style="font-size: 12px; line-height: 1.6;">
+                        ${keyBadge}
                         <div><strong>所有:</strong> ${ownerText}</div>
                         <div><strong>兵力:</strong> ${troops}部隊</div>
                     </div>
@@ -377,11 +2211,18 @@
             return 'neutral';
         }
 
-        // 所有者別の色
+        // 所有者別の色（サイバーカラー）
         function getOwnerColor(owner) {
-            if (owner === 'player') return '#4fc3f7'; // 青
-            if (owner === 'ai') return '#ef5350'; // 赤
-            return '#888888'; // グレー
+            if (owner === 'player') return '#00e5ff'; // neon cyan
+            if (owner === 'ai')     return '#ff0055'; // neon red
+            return '#1a1a1a'; // dark neutral
+        }
+
+        // 所有者別のボーダー色
+        function getOwnerStroke(owner) {
+            if (owner === 'player') return '#00e5ff';
+            if (owner === 'ai')     return '#ff0055';
+            return '#333333';
         }
 
         // 区クリック時の処理
@@ -408,16 +2249,16 @@
             }
         }
 
-        // ハイライト表示
+        // ハイライト表示（neon yellow + glow）
         function highlightWard(wardName) {
             const marker = wardMarkers[wardName];
             if (marker) {
                 marker.setIcon({
                     path: google.maps.SymbolPath.CIRCLE,
-                    scale: 22,
-                    fillColor: '#ffd700',
-                    fillOpacity: 1,
-                    strokeColor: '#ffffff',
+                    scale: 24,
+                    fillColor: '#ffaa00',
+                    fillOpacity: 0.5,
+                    strokeColor: '#ffaa00',
                     strokeWeight: 3
                 });
             }
@@ -446,18 +2287,27 @@
             const routeLine = new google.maps.Polyline({
                 path: path,
                 geodesic: true,
-                strokeColor: '#FF0000',
-                strokeOpacity: 0.8,
-                strokeWeight: 5,
+                strokeColor: '#ff0055',
+                strokeOpacity: 0.9,
+                strokeWeight: 2,
                 map: map,
-                icons: [{
-                    icon: {
-                        path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                        scale: 3,
-                        strokeColor: '#FFFFFF'
+                icons: [
+                    {
+                        icon: {
+                            path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                            scale: 3,
+                            strokeColor: '#ff0055',
+                            fillColor: '#ff0055',
+                            fillOpacity: 1
+                        },
+                        offset: '100%'
                     },
-                    offset: '100%'
-                }]
+                    {
+                        icon: { path: 'M 0,-1 0,1', strokeColor: '#ff0055', strokeWeight: 2, scale: 4 },
+                        offset: '0%',
+                        repeat: '18px'
+                    }
+                ]
             });
 
             // 進軍アニメーション
@@ -475,16 +2325,12 @@
                     position: fromPos,
                     map: map,
                     icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: 12,
-                        fillColor: '#FF4444',
+                        path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                        scale: 5,
+                        fillColor: '#ff0055',
                         fillOpacity: 1,
-                        strokeColor: '#FFFFFF',
-                        strokeWeight: 3
-                    },
-                    label: {
-                        text: '⚔️',
-                        fontSize: '16px'
+                        strokeColor: '#ff0055',
+                        strokeWeight: 1
                     },
                     zIndex: 1000
                 });
@@ -515,28 +2361,50 @@
             });
         }
 
-        // 戦闘エフェクト
+        // 戦闘エフェクト — CSS neonリング拡散 + Mapsマーカー
         function showBattleEffect(position) {
-            const explosionMarker = new google.maps.Marker({
+            // Google Maps マーカー（電弧フラッシュ）
+            const flashMarker = new google.maps.Marker({
                 position: position,
                 map: map,
                 icon: {
                     path: google.maps.SymbolPath.CIRCLE,
-                    scale: 25,
-                    fillColor: '#FF6600',
-                    fillOpacity: 0.7,
-                    strokeColor: '#FF0000',
-                    strokeWeight: 3
+                    scale: 18,
+                    fillColor: '#ff0055',
+                    fillOpacity: 0.15,
+                    strokeColor: '#ff0055',
+                    strokeWeight: 1.5
                 },
-                label: {
-                    text: '💥',
-                    fontSize: '24px'
-                },
-                animation: google.maps.Animation.BOUNCE,
                 zIndex: 999
             });
+            setTimeout(() => flashMarker.setMap(null), 700);
 
-            setTimeout(() => explosionMarker.setMap(null), 1000);
+            // CSS neonリング（画面座標変換）
+            if (!map) return;
+            const proj = map.getProjection();
+            if (!proj) return;
+            const mapDiv = document.getElementById('map');
+            const mapBounds = mapDiv.getBoundingClientRect();
+            const worldPt = proj.fromLatLngToPoint(new google.maps.LatLng(position));
+            const mapPt   = proj.fromLatLngToPoint(map.getCenter());
+            const scale   = Math.pow(2, map.getZoom());
+            const offsetX = (worldPt.x - mapPt.x) * scale + mapBounds.width  / 2;
+            const offsetY = (worldPt.y - mapPt.y) * scale + mapBounds.height / 2;
+            const screenX = mapBounds.left + offsetX;
+            const screenY = mapBounds.top  + offsetY;
+
+            const el = document.createElement('div');
+            el.className = 'neon-explosion';
+            el.style.left = screenX + 'px';
+            el.style.top  = screenY + 'px';
+            const SIZE = 50;
+            el.innerHTML = `
+                <div class="ring" style="width:${SIZE}px;height:${SIZE}px;left:0;top:0;"></div>
+                <div class="ring" style="width:${SIZE}px;height:${SIZE}px;left:0;top:0;"></div>
+                <div class="ring" style="width:${SIZE}px;height:${SIZE}px;left:0;top:0;"></div>
+            `;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 1000);
         }
 
         // 攻撃実行
@@ -579,6 +2447,11 @@
                     log(result.success ? `✅ ${result.message}` : `❌ ${result.message}`);
                 }
 
+                // ボーナスターン通知
+                if (data.bonus_turn) {
+                    log('⚡ ボーナスターン獲得！SPDの高い区からの制圧成功。もう1回攻撃できます！');
+                }
+
                 // AI行動表示
                 if (data.ai_actions && data.ai_actions.length > 0) {
                     for (const action of data.ai_actions) {
@@ -599,193 +2472,296 @@
             }
         }
 
-        // ターン終了
-        async function endTurn() {
-            try {
-                const response = await fetch('/game/end_turn', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({session_id: sessionId})
-                });
-                const data = await response.json();
 
-                log('⏭️ プレイヤーターン終了');
-                log(data.ai_message || 'AIターン実行中...');
-
-                gameState = data.game_state;
-                updateUI();
-                drawWardMarkers();
-
-                if (gameState.game_over) {
-                    log(`🏁 ゲーム終了！ 勝者: ${gameState.winner}`);
-                    document.getElementById('btn-end-turn').disabled = true;
-                }
-
-            } catch (error) {
-                log(`❌ エラー: ${error.message}`);
-            }
-        }
 
         // UI更新
         function updateUI() {
-            document.getElementById('player-score').textContent = gameState.player_wards.length;
-            document.getElementById('ai-score').textContent = gameState.ai_wards.length;
-            document.getElementById('neutral-score').textContent = 23 - gameState.player_wards.length - gameState.ai_wards.length;
+            const pCount = gameState.player_wards.length;
+            const aCount = gameState.ai_wards.length;
+            const nCount = 23 - pCount - aCount;
+            document.getElementById('player-score').textContent = pCount;
+            document.getElementById('ai-score').textContent = aCount;
+            document.getElementById('neutral-score').textContent = nCount;
             document.getElementById('turn-val').textContent = gameState.turn;
+
+            // 占領率プログレスバー更新
+            const pPct = (pCount / 23 * 100).toFixed(1);
+            const aPct = (aCount / 23 * 100).toFixed(1);
+            const nPct = (nCount / 23 * 100).toFixed(1);
+            document.getElementById('bar-player').style.width = pPct + '%';
+            document.getElementById('bar-neutral').style.width = nPct + '%';
+            document.getElementById('bar-ai').style.width = aPct + '%';
+            // 過半数に近い方を強調
+            if (pCount >= 10) document.getElementById('bar-player').style.boxShadow = '0 0 16px #00e5ff';
+            if (aCount >= 10) document.getElementById('bar-ai').style.boxShadow = '0 0 16px #ff0055';
         }
 
-        // ログ表示
+        // ログ表示（battle-logに統合）
         function log(message) {
-            const logDiv = document.getElementById('game-log');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            entry.textContent = message;
-            logDiv.insertBefore(entry, logDiv.firstChild);
-
-            // 最大20件まで
-            while (logDiv.children.length > 20) {
-                logDiv.removeChild(logDiv.lastChild);
-            }
+            const panel = document.getElementById('battle-log');
+            if (!panel) return;
+            const div = document.createElement('div');
+            div.className = 'data-stream-entry';
+            div.style.color = 'var(--text-dim)';
+            div.textContent = message;
+            panel.appendChild(div);
+            panel.scrollTop = panel.scrollHeight;
+            while (panel.children.length > 200) panel.removeChild(panel.firstChild);
         }
 
-        // 自然言語コマンド実行
-        async function executeNaturalCommand(commandText) {
-            if (!commandText.trim()) {
-                log('⚠️ コマンドを入力してください');
+
+
+
+        // AIコマンダーチャット送信
+        async function sendAIChat(message) {
+            if (!message || !message.trim()) {
                 return;
             }
 
-            log(`💬 実行中: "${commandText}"`);
+            // ユーザーメッセージ表示
+            displayChatMessage('user', message);
 
             try {
-                const response = await fetch('/command/natural', {
+                const response = await fetch('/ai/chat', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         session_id: sessionId,
-                        command: commandText
+                        user_message: message
                     })
                 });
 
                 const data = await response.json();
 
-                if (data.success) {
-                    log(`✅ ${data.message}`);
-
-                    // 攻撃の場合はアニメーション表示
-                    if (data.command === 'attack' && data.args) {
-                        await showAttackRoute(data.args.from_ward, data.args.to_ward);
-                    }
-
-                    // 結果表示
-                    if (data.result && data.result.attack_result) {
-                        const res = data.result.attack_result;
-                        log(res.message || (res.success ? '攻撃成功！' : '攻撃失敗'));
-                    }
-
-                    // AI行動表示
-                    if (data.result && data.result.ai_actions) {
-                        for (const action of data.result.ai_actions) {
-                            const dec = action.decision;
-                            const res = action.result;
-                            log(`🤖 AI: ${dec.from} → ${dec.to} ${res.success ? '成功' : '失敗'}`);
-                        }
-                    }
-
-                    // 状態表示
-                    if (data.command === 'get_status' && data.result) {
-                        const r = data.result;
-                        log(`📊 ${r.ward}: ${r.owner} | 兵力${r.troops} | DEF${r.stats.DEF}`);
-                    }
-
-                    if (data.command === 'get_overview' && data.result) {
-                        const r = data.result;
-                        log(`📊 ターン${r.turn}: プレイヤー${r.player_wards}区/${r.total_player_troops}兵 vs AI${r.ai_wards}区/${r.total_ai_troops}兵`);
-                    }
-
-                    // ゲーム状態更新
-                    if (data.state) {
-                        gameState = data.state;
-                        updateUI();
-                        drawWardMarkers();
-                    }
-
-                } else if (data.is_question) {
-                    log(`❓ ${data.message}`);
-                } else {
-                    log(`❌ ${data.message || data.error || 'コマンドを実行できませんでした'}`);
+                if (data.ai_response) {
+                    displayChatMessage('ai', data.ai_response);
                 }
 
-                // 入力欄をクリア
-                document.getElementById('nl-command').value = '';
+            } catch (error) {
+                log(`❌ AIチャットエラー: ${error.message}`);
+            }
+
+            // 入力欄クリア
+            document.getElementById('ai-chat-input').value = '';
+        }
+
+        // チャットメッセージ表示
+        function displayChatMessage(sender, message) {
+            const chatHistory = document.getElementById('ai-chat-history');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${sender}-message`;
+            messageDiv.style.marginBottom = '8px';
+
+            if (sender === 'ai') {
+                messageDiv.innerHTML = `<strong>🎖️ 副官:</strong> ${message}`;
+            } else {
+                messageDiv.innerHTML = `<strong>👤 司令官:</strong> ${message}`;
+                messageDiv.style.textAlign = 'right';
+                messageDiv.style.color = '#0066cc';
+            }
+
+            chatHistory.appendChild(messageDiv);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        // 戦況分析リクエスト
+        async function requestAnalysis() {
+            log('📊 戦況分析中...');
+            displayChatMessage('user', '戦況を分析してください');
+
+            try {
+                const response = await fetch(`/ai/analysis/${sessionId}`);
+                const data = await response.json();
+
+                if (data.analysis) {
+                    displayChatMessage('ai', data.analysis);
+                    log('✅ 戦況分析完了');
+                }
 
             } catch (error) {
-                log(`❌ エラー: ${error.message}`);
+                log(`❌ 分析エラー: ${error.message}`);
             }
         }
 
-        // 音声認識初期化
-        function initVoiceRecognition() {
-            if (!('webkitSpeechRecognition' in window)) {
-                log('⚠️ このブラウザは音声認識に対応していません');
-                document.getElementById('btn-voice-input').disabled = true;
-                return;
-            }
 
-            recognition = new webkitSpeechRecognition();
-            recognition.lang = 'ja-JP';
-            recognition.continuous = false;
-            recognition.interimResults = false;
 
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                log(`🎤 認識: "${transcript}"`);
-                document.getElementById('nl-command').value = transcript;
-                executeNaturalCommand(transcript);
-            };
-
-            recognition.onerror = (event) => {
-                log(`❌ 音声認識エラー: ${event.error}`);
-            };
-
-            recognition.onend = () => {
-                document.getElementById('btn-voice-input').textContent = '🎤 音声';
-            };
-        }
-
-        // 音声入力開始
-        function startVoiceInput() {
-            if (recognition) {
-                recognition.start();
-                document.getElementById('btn-voice-input').textContent = '🔴 停止';
-                log('🎤 話してください...');
-            }
+        // ボタンクリック時のネオンフラッシュエフェクト
+        function addFlashEffect(btn) {
+            btn.classList.remove('btn-flash');
+            void btn.offsetWidth; // reflow
+            btn.classList.add('btn-flash');
+            btn.addEventListener('animationend', () => btn.classList.remove('btn-flash'), { once: true });
         }
 
         // イベントリスナー
-        document.getElementById('btn-start').addEventListener('click', startGame);
-        document.getElementById('btn-end-turn').addEventListener('click', endTurn);
+        const btnStart = document.getElementById('btn-start');
+        btnStart.addEventListener('click', () => { addFlashEffect(btnStart); startGame(); });
 
-        // 自然言語コマンド
-        document.getElementById('btn-execute-command').addEventListener('click', () => {
-            const command = document.getElementById('nl-command').value;
-            executeNaturalCommand(command);
+        // AIコマンダーチャット
+        document.getElementById('btn-send-chat').addEventListener('click', () => {
+            const message = document.getElementById('ai-chat-input').value;
+            sendAIChat(message);
         });
 
-        document.getElementById('nl-command').addEventListener('keypress', (e) => {
+        document.getElementById('ai-chat-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                const command = e.target.value;
-                executeNaturalCommand(command);
+                const message = e.target.value;
+                sendAIChat(message);
             }
         });
 
-        document.getElementById('btn-voice-input').addEventListener('click', startVoiceInput);
+        document.getElementById('btn-analysis').addEventListener('click', requestAnalysis);
 
-        // 地図読み込み完了時に初期化
-        window.addEventListener('load', () => {
-            initMap();
-            initVoiceRecognition();
+        // 部隊命令 Enter キー送信
+        document.getElementById('commander-order-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendCommanderOrder();
         });
+
+        // ============================================================
+        // Gemini Live API 音声コマンド
+        // ============================================================
+        let liveWs = null;
+        let micStream = null;
+        let captureCtx = null;
+        let processorNode = null;
+        let playbackCtx = null;
+        let nextPlayTime = 0;
+
+        // Live API 自動接続（ゲーム開始時に呼ぶ。マイクなし、受信のみ）
+        async function autoStartLiveSession() {
+            if (!sessionId) return;
+            if (liveWs && liveWs.readyState === WebSocket.OPEN) return;
+            playbackCtx = new AudioContext({ sampleRate: 24000 });
+            nextPlayTime = 0;
+            setVoiceStatus('接続中...', '#ffb300');
+
+            liveWs = new WebSocket(`ws://${location.host}/ws/live/${sessionId}`);
+
+            liveWs.onopen = () => {
+                setVoiceStatus('🔊 エージェント通信受信中', '#69f0ae');
+            };
+
+            liveWs.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'audio') {
+                    playPCMChunk(msg.data);
+                } else if (msg.type === 'transcript') {
+                    // モデルの思考テキストは無視（音声のみ使用）
+                } else if (msg.type === 'error') {
+                    setVoiceStatus(msg.data, '#ef5350');
+                }
+            };
+
+            liveWs.onclose = () => {
+                stopMic();
+                setVoiceStatus('切断', '#aaa');
+                const fab = document.getElementById('mic-fab');
+                if (fab) fab.style.background = '#1565c0';
+            };
+            liveWs.onerror = () => setVoiceStatus('接続エラー', '#ef5350');
+        }
+
+        // マイクFABトグル
+        async function toggleMic() {
+            if (micStream) {
+                stopMic();
+            } else {
+                await startMic();
+            }
+        }
+
+        // マイク開始（話しかける用）
+        async function startMic() {
+            if (!liveWs || liveWs.readyState !== WebSocket.OPEN) {
+                await autoStartLiveSession();
+                await new Promise(r => setTimeout(r, 600));
+            }
+            setVoiceStatus('マイク起動中...', '#ffb300');
+            try {
+                micStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
+                });
+            } catch (e) {
+                setVoiceStatus('マイクアクセス拒否', '#ef5350');
+                return;
+            }
+            captureCtx = new AudioContext({ sampleRate: 16000 });
+            const source = captureCtx.createMediaStreamSource(micStream);
+            processorNode = captureCtx.createScriptProcessor(4096, 1, 1);
+            processorNode.onaudioprocess = (ev) => {
+                if (!liveWs || liveWs.readyState !== WebSocket.OPEN) return;
+                const f32 = ev.inputBuffer.getChannelData(0);
+                const i16 = new Int16Array(f32.length);
+                for (let i = 0; i < f32.length; i++) {
+                    const s = Math.max(-1, Math.min(1, f32[i]));
+                    i16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+                const bytes = new Uint8Array(i16.buffer);
+                let bin = '';
+                for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+                liveWs.send(JSON.stringify({ type: 'audio', data: btoa(bin) }));
+            };
+            source.connect(processorNode);
+            processorNode.connect(captureCtx.destination);
+            setVoiceStatus('🎤 送信中 — 話しかけてください', '#ef5350');
+            const fab = document.getElementById('mic-fab');
+            if (fab) { fab.style.background = '#c62828'; fab.style.transform = 'scale(1.15)'; }
+        }
+
+        // マイク停止（Live WS は維持）
+        function stopMic() {
+            if (processorNode) { processorNode.disconnect(); processorNode = null; }
+            if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+            if (captureCtx) { captureCtx.close(); captureCtx = null; }
+            if (liveWs && liveWs.readyState === WebSocket.OPEN) {
+                setVoiceStatus('🔊 エージェント通信受信中', '#69f0ae');
+            }
+            const fab = document.getElementById('mic-fab');
+            if (fab) { fab.style.background = '#1565c0'; fab.style.transform = 'scale(1)'; }
+        }
+
+        function playPCMChunk(b64) {
+            const bin = atob(b64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            const i16 = new Int16Array(bytes.buffer);
+            const f32 = new Float32Array(i16.length);
+            for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 32768.0;
+
+            const buffer = playbackCtx.createBuffer(1, f32.length, 24000);
+            buffer.getChannelData(0).set(f32);
+            const src = playbackCtx.createBufferSource();
+            src.buffer = buffer;
+            src.connect(playbackCtx.destination);
+            const startAt = Math.max(nextPlayTime, playbackCtx.currentTime + 0.05);
+            src.start(startAt);
+            nextPlayTime = startAt + buffer.duration;
+        }
+
+        function stopVoiceMode() {
+            if (processorNode) { processorNode.disconnect(); processorNode = null; }
+            if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+            if (captureCtx) { captureCtx.close(); captureCtx = null; }
+            if (liveWs) { liveWs.close(); liveWs = null; }
+            document.getElementById('btn-voice').textContent = '🎤 音声コマンド';
+            setVoiceStatus('', '');
+        }
+
+        function setVoiceStatus(text, color) {
+            const el = document.getElementById('voice-status');
+            if (el) { el.textContent = text; el.style.color = color; }
+        }
+
+        // Google Maps API読み込み完了時のコールバック
+        function initializeApp() {
+            initMap();
+        }
+
+        // グローバルスコープに関数を公開
+        window.initializeApp = initializeApp;
     </script>
+
+    <!-- Google Maps API with async loading -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=__GMAPS_API_KEY__&libraries=geometry&loading=async&callback=initializeApp" async defer></script>
 </body>
 </html>

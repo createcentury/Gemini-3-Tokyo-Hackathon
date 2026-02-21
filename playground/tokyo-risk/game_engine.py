@@ -3,12 +3,14 @@ Tokyo Risk - ゲームエンジン
 ============================
 - 23区の陣取り
 - Maps POIデータから算出したスタッツが戦闘・移動に影響
-- Gemini 3 が AI対戦相手の戦略を生成
+- 自律エージェントがGemini Function Callingで行動判断
 """
 
-import random, json
+import random
+import json
 from pathlib import Path
-from ward_data import ADJACENCY, WARDS, STAT_LABELS
+from typing import Optional
+from ward_data import ADJACENCY, WARDS, WARD_LATLNG
 
 # ルート移動コスト（Routes API キャッシュ）
 _route_cache_file = Path(__file__).parent / "route_times_cache.json"
@@ -31,8 +33,189 @@ AI       = "ai"
 NEUTRAL  = "neutral"
 
 STARTING_TROOPS = 3       # 初期駐留兵力
-INCOME_RATIO    = 0.5     # INC スタッツ → 毎ターン増加する兵力の比率
-REINFORCE_COST  = 2       # 兵力1増やすのに必要な収入
+MAX_LOG_ENTRIES = 500     # ゲームログの最大保持件数
+
+TEAM_BUDGET = 100         # チームの合計予算（ゴールド）
+
+# 戦略要所（取得で高ボーナス）
+KEY_WARDS: dict[str, int] = {
+    "新宿区":  5,   # 交通の要衝
+    "渋谷区":  4,
+    "千代田区": 5,  # 政治の中心
+    "港区":    4,
+    "中央区":  3,   # 経済の中心（銀座）
+    "豊島区":  3,   # 池袋
+    "台東区":  2,   # 浅草・上野
+    "文京区":  2,
+}
+
+# ============================================================
+# ツール（武装）定義
+# ============================================================
+TOOLS: dict[str, dict] = {
+    "rapid_move": {
+        "name": "高速移動",
+        "cost": 20,
+        "description": "移動速度が2倍になる",
+        "icon": "🏃",
+        "effects": {"speed_multiplier": 2.0}
+    },
+    "radar": {
+        "name": "偵察レーダー",
+        "cost": 15,
+        "description": "周辺検知範囲が2倍になる",
+        "icon": "📡",
+        "effects": {"radar_range": 0.10}  # デフォルト0.05 → 0.10
+    },
+    "attack_boost": {
+        "name": "攻撃力強化",
+        "cost": 25,
+        "description": "攻撃ダメージが1.5倍になる",
+        "icon": "⚔️",
+        "effects": {"attack_multiplier": 1.5}
+    },
+    "shield": {
+        "name": "防御シールド",
+        "cost": 20,
+        "description": "受けるダメージを40%軽減",
+        "icon": "🛡️",
+        "effects": {"defense_pct": 40}   # ダメージを40%カット
+    },
+    "medkit": {
+        "name": "医療キット",
+        "cost": 10,
+        "description": "毎ターン体力を8回復",
+        "icon": "💊",
+        "effects": {"regen": 8}
+    },
+    "comm_boost": {
+        "name": "通信ブースター",
+        "cost": 10,
+        "description": "コマンダーへの報告頻度が上がり、より正確な指示が届く",
+        "icon": "📻",
+        "effects": {"comm_priority": True}
+    },
+}
+
+
+# ============================================================
+# Agent エンティティ
+# ============================================================
+class Agent:
+    """自律的に行動するAIエージェント（兵士）"""
+    def __init__(self, agent_id: str, owner: str, system_prompt: str,
+                 tools: Optional[list[str]] = None):
+        self.id = agent_id              # "player_001" ~ "player_010", "ai_001" ~ "ai_010"
+        self.owner = owner              # PLAYER or AI
+        self.system_prompt = system_prompt  # ユーザーが設定した戦略プロンプト
+        self.tools: list[str] = tools or []  # 装備ツールIDのリスト
+
+        # 位置情報
+        self.lat = 35.6938
+        self.lng = 139.7036
+        self.destination: Optional[dict] = None  # {"lat": ..., "lng": ..., "ward": "渋谷区"}
+        self.speed = 0.014              # 1フレームあたりの移動量（緯度経度）- デモ用高速
+
+        # ステータス（ツール適用前のベース値）
+        self.attack = 10          # 攻撃力（ダメージ量）
+        self.defense_pct = 0      # ダメージ軽減率 0-100%
+        self.radar_range = 0.05   # 周辺検知範囲（度）
+        self.regen = 0            # 毎tick体力回復量
+        self.comm_priority = False
+        self.is_alive = True      # 撃破されるとFalse
+
+        # 状態
+        self.state = "idle"             # idle, moving, attacking, defending, patrolling
+        self.health = 100
+        self.target_ward: Optional[str] = None  # 目標とする区
+
+        self.last_action_time: float = 0.0  # 初回から即座に行動判断させる
+
+        # 思考可視化
+        self.thought: str = ""          # 現在の思考・行動理由
+        self.thought_time: float = 0.0  # thought が設定された時刻
+
+        # ツール効果を適用
+        self._apply_tools()
+
+    def _apply_tools(self):
+        """装備ツールのボーナスをステータスに反映"""
+        for tool_id in self.tools:
+            tool = TOOLS.get(tool_id)
+            if not tool:
+                continue
+            effects = tool["effects"]
+            if "speed_multiplier" in effects:
+                self.speed *= effects["speed_multiplier"]
+            if "radar_range" in effects:
+                self.radar_range = effects["radar_range"]
+            if "attack_multiplier" in effects:
+                self.attack = int(self.attack * effects["attack_multiplier"])
+            if "defense_pct" in effects:
+                self.defense_pct = min(80, self.defense_pct + effects["defense_pct"])
+            if "regen" in effects:
+                self.regen += effects["regen"]
+            if "comm_priority" in effects:
+                self.comm_priority = True
+
+    def take_damage(self, raw_damage: int) -> int:
+        """ダメージを受ける。実際のダメージ量を返す"""
+        actual = max(1, int(raw_damage * (1 - self.defense_pct / 100)))
+        self.health -= actual
+        if self.health <= 0:
+            self.health = 0
+            self.is_alive = False
+            self.state = "dead"
+        return actual
+
+    def update_position(self, delta_time: float = 0.1):
+        """目的地に向かって移動"""
+        if not self.destination or self.state != "moving":
+            return
+
+        dest_lat = self.destination["lat"]
+        dest_lng = self.destination["lng"]
+
+        # 目的地に到達したか確認
+        dist = ((self.lat - dest_lat)**2 + (self.lng - dest_lng)**2)**0.5
+        if dist < self.speed * 2:
+            self.lat = dest_lat
+            self.lng = dest_lng
+            self.state = "idle"
+            self.destination = None
+            return
+
+        # 目的地に向かって移動
+        direction_lat = (dest_lat - self.lat) / dist
+        direction_lng = (dest_lng - self.lng) / dist
+
+        self.lat += direction_lat * self.speed
+        self.lng += direction_lng * self.speed
+
+    def set_destination(self, lat: float, lng: float, ward: Optional[str] = None):
+        """目的地を設定して移動開始"""
+        self.destination = {"lat": lat, "lng": lng, "ward": ward}
+        self.state = "moving"
+        self.target_ward = ward
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "owner": self.owner,
+            "lat": self.lat,
+            "lng": self.lng,
+            "destination": self.destination,
+            "state": self.state,
+            "health": self.health,
+            "target_ward": self.target_ward,
+            "tools": self.tools,
+            "attack": self.attack,
+            "defense_pct": self.defense_pct,
+            "radar_range": self.radar_range,
+            "regen": self.regen,
+            "is_alive": self.is_alive,
+            "thought": self.thought,
+        }
 
 
 # ============================================================
@@ -47,6 +230,12 @@ class GameState:
         self.turn = 1
         self.log: list[str] = []
 
+        # 新規: エージェント管理
+        self.agents: dict[str, Agent] = {}  # agent_id -> Agent
+        self.commander_order: str = ""       # プレイヤーからエージェントへの現在の命令
+        self.agent_messages: dict[str, list] = {PLAYER: [], AI: []}
+        # 各エントリ: {"from": "player_001", "text": "渋谷区へ向かいます"}
+
         # 初期化: 全区NEUTRAL
         for w in WARDS:
             self.owner[w] = NEUTRAL
@@ -59,11 +248,60 @@ class GameState:
         self.troops[player_ward] = 5
         self.troops[ai_ward]     = 5
 
+    def setup_agents(self, player_prompts: list[str], ai_prompts: list[str],
+                     player_ward: str, ai_ward: str,
+                     player_tools: Optional[list[list[str]]] = None,
+                     ai_tools: Optional[list[list[str]]] = None):
+        """10体ずつのエージェントを初期化
+
+        player_tools: 各エージェントのツールIDリスト（10要素）
+                      例: [["rapid_move"], ["shield", "medkit"], [], ...]
+        """
+        player_pos = WARD_LATLNG[player_ward]
+        ai_pos = WARD_LATLNG[ai_ward]
+        player_tools = player_tools or [[] for _ in range(10)]
+        ai_tools = ai_tools or [[] for _ in range(10)]
+
+        # プレイヤーのエージェント
+        for i in range(10):
+            agent_id = f"player_{i+1:03d}"
+            prompt = player_prompts[i] if i < len(player_prompts) else player_prompts[0]
+            tools = player_tools[i] if i < len(player_tools) else []
+            agent = Agent(agent_id, PLAYER, prompt, tools=tools)
+            agent.lat, agent.lng = player_pos[0], player_pos[1]
+            self.agents[agent_id] = agent
+
+        # AIのエージェント
+        for i in range(10):
+            agent_id = f"ai_{i+1:03d}"
+            prompt = ai_prompts[i] if i < len(ai_prompts) else ai_prompts[0]
+            tools = ai_tools[i] if i < len(ai_tools) else []
+            agent = Agent(agent_id, AI, prompt, tools=tools)
+            agent.lat, agent.lng = ai_pos[0], ai_pos[1]
+            self.agents[agent_id] = agent
+
     # --------------------------------------------------------
     # スタッツ取得
     # --------------------------------------------------------
+    def _log(self, msg: str) -> None:
+        """ログを追記し、上限を超えた古いエントリを削除する"""
+        self.log.append(msg)
+        if len(self.log) > MAX_LOG_ENTRIES:
+            del self.log[:len(self.log) - MAX_LOG_ENTRIES]
+
+    # --------------------------------------------------------
     def get_stat(self, ward: str, key: str) -> int:
         return self.stats.get(ward, {}).get(key, 5)
+
+    @property
+    def player_wards(self):
+        """プレイヤーが支配している区のリスト"""
+        return [w for w, o in self.owner.items() if o == PLAYER]
+
+    @property
+    def ai_wards(self):
+        """AIが支配している区のリスト"""
+        return [w for w, o in self.owner.items() if o == AI]
 
     def ward_info(self, ward: str) -> dict:
         s = self.stats.get(ward, {})
@@ -76,138 +314,34 @@ class GameState:
         }
 
     # --------------------------------------------------------
-    # 戦闘解決
-    # --------------------------------------------------------
-    def resolve_attack(self, attacker_ward: str, defender_ward: str, attacker: str) -> dict:
-        """
-        attacker_ward → defender_ward への攻撃を解決する
-
-        戦闘式:
-          攻撃力 = 攻撃側兵力 × ATK / 10
-          防御力 = 防御側兵力 × DEF / 10 (+ 自領地ボーナス ×1.3)
-          ランダム要素 ±20%
-        """
-        if defender_ward not in ADJACENCY[attacker_ward]:
-            return {"success": False, "reason": "隣接していない区です"}
-
-        if self.owner[attacker_ward] != attacker:
-            return {"success": False, "reason": "自分の区ではありません"}
-
-        if self.troops[attacker_ward] <= 1:
-            return {"success": False, "reason": "兵力が不足しています（最低1必要）"}
-
-        atk_troops = self.troops[attacker_ward] - 1  # 1は防衛に残す
-        def_troops = self.troops[defender_ward]
-
-        # ルート移動コスト: 渋滞が多いほど攻撃力低下（コスト5→60%, コスト1→100%）
-        route_cost = _movement_cost(attacker_ward, defender_ward)
-        route_penalty = 1.0 - (route_cost - 1) * 0.1  # 1→1.0, 3→0.8, 5→0.6
-
-        atk_power = atk_troops * self.get_stat(attacker_ward, "ATK") / 10 * route_penalty
-        def_power = def_troops * self.get_stat(defender_ward, "DEF") / 10
-
-        # 自領地防衛ボーナス
-        defender = self.owner[defender_ward]
-        if defender != NEUTRAL:
-            def_power *= 1.3
-
-        # ランダム要素
-        atk_roll = atk_power * random.uniform(0.8, 1.2)
-        def_roll = def_power * random.uniform(0.8, 1.2)
-
-        won = atk_roll > def_roll
-        losses_atk = max(1, int(atk_troops * 0.3)) if won else max(1, int(atk_troops * 0.6))
-        losses_def = max(1, int(def_troops * 0.5)) if won else max(1, int(def_troops * 0.2))
-
-        route_minutes = _ROUTE_TIMES.get("|".join(sorted([attacker_ward, defender_ward])), {}).get("seconds", 0) // 60
-        msg_parts = [
-            f"{'✅ 制圧成功' if won else '❌ 攻撃失敗'}",
-            f"{attacker_ward}({atk_troops}兵) → {defender_ward}({def_troops}兵)",
-            f"攻撃力:{atk_roll:.1f} vs 防御力:{def_roll:.1f}",
-            f"[道路{route_minutes}分/渋滞補正{route_penalty:.0%}]",
-        ]
-
-        if won:
-            self.owner[defender_ward] = attacker
-            self.troops[attacker_ward] -= losses_atk
-            self.troops[defender_ward] = max(1, atk_troops - losses_atk)
-            msg_parts.append(f"残存兵力: {self.troops[defender_ward]}")
-        else:
-            self.troops[attacker_ward] = max(1, self.troops[attacker_ward] - losses_atk)
-            self.troops[defender_ward] = max(1, self.troops[defender_ward] - losses_def)
-
-        msg = " | ".join(msg_parts)
-        self.log.append(msg)
-
-        # SPDボーナス: 攻撃側のSPDが高いと追加行動チャンス
-        bonus_turn = self.get_stat(attacker_ward, "SPD") >= 8
-
-        return {
-            "success": True,
-            "won": won,
-            "message": msg,
-            "losses_attacker": losses_atk,
-            "losses_defender": losses_def,
-            "bonus_turn": bonus_turn and won,
-        }
-
-    # --------------------------------------------------------
-    # ターン終了処理
-    # --------------------------------------------------------
-    def end_turn(self, side: str):
-        """
-        ターン終了時:
-        - 各所有区のINCから収入を得る
-        - REC スタッツが高い区は自動回復
-        """
-        total_income = 0
-        for ward, owner in self.owner.items():
-            if owner == side:
-                inc = self.get_stat(ward, "INC")
-                total_income += max(1, inc // 2)
-                # REC: 回復力が高い区は兵力自動回復
-                rec = self.get_stat(ward, "REC")
-                if rec >= 7:
-                    self.troops[ward] = min(15, self.troops[ward] + 1)
-
-        self.income[side] = self.income.get(side, 0) + total_income
-        return total_income
-
-    def reinforce(self, ward: str, side: str, amount: int = 1) -> dict:
-        """収入を使って指定区の兵力を増強"""
-        cost = amount * REINFORCE_COST
-        if self.income.get(side, 0) < cost:
-            return {"success": False, "reason": f"収入不足（必要: {cost}、所持: {self.income[side]}）"}
-        if self.owner[ward] != side:
-            return {"success": False, "reason": "自分の区ではありません"}
-
-        self.income[side] -= cost
-        self.troops[ward] += amount
-        msg = f"🔧 {ward} に {amount} 兵力増強（残収入: {self.income[side]}）"
-        self.log.append(msg)
-        return {"success": True, "message": msg}
-
-    # --------------------------------------------------------
     # 勝利判定
     # --------------------------------------------------------
     def check_victory(self) -> str | None:
         counts = {PLAYER: 0, AI: 0, NEUTRAL: 0}
         for o in self.owner.values():
             counts[o] += 1
+        # 全23区を制圧（中立なし）かつ多い方が勝利
         if counts[NEUTRAL] == 0:
             if counts[PLAYER] > counts[AI]:
+                print(f"  [VICTORY] PLAYER wins: P={counts[PLAYER]} AI={counts[AI]} N={counts[NEUTRAL]}")
                 return PLAYER
             elif counts[AI] > counts[PLAYER]:
+                print(f"  [VICTORY] AI wins: P={counts[PLAYER]} AI={counts[AI]} N={counts[NEUTRAL]}")
                 return AI
-        # 主要5区（山手線内）を全制圧で勝利
-        key_wards = ["千代田区", "港区", "新宿区", "渋谷区", "豊島区"]
-        for side in [PLAYER, AI]:
-            if all(self.owner[w] == side for w in key_wards):
-                return side
+        # 過半数（12区以上）制圧で勝利
+        if counts[PLAYER] >= 12:
+            print(f"  [VICTORY] PLAYER majority: P={counts[PLAYER]} AI={counts[AI]} N={counts[NEUTRAL]}")
+            return PLAYER
+        if counts[AI] >= 12:
+            print(f"  [VICTORY] AI majority: P={counts[PLAYER]} AI={counts[AI]} N={counts[NEUTRAL]}")
+            return AI
         return None
 
     def serialize(self) -> dict:
         """フロントエンド向けにシリアライズ"""
+        player_wards = [w for w, o in self.owner.items() if o == PLAYER]
+        ai_wards = [w for w, o in self.owner.items() if o == AI]
+
         return {
             "turn":   self.turn,
             "owner":  dict(self.owner),
@@ -216,86 +350,14 @@ class GameState:
             "log":    self.log[-10:],  # 直近10件
             "stats":  self.stats,
             "victory": self.check_victory(),
+            "player_wards": player_wards,
+            "ai_wards": ai_wards,
             "ward_count": {
                 PLAYER:  sum(1 for o in self.owner.values() if o == PLAYER),
                 AI:      sum(1 for o in self.owner.values() if o == AI),
                 NEUTRAL: sum(1 for o in self.owner.values() if o == NEUTRAL),
-            }
+            },
+            "agents": {aid: a.to_dict() for aid, a in self.agents.items()}
         }
 
 
-# ============================================================
-# AI 対戦相手
-# ============================================================
-class GeminiAI:
-    def __init__(self, client):
-        self.client = client
-
-    def decide_action(self, state: GameState) -> dict:
-        """
-        Gemini 3 が盤面を分析して最善手を決定する
-        （戦略的思考 = Gemini 3 の推論能力を活用）
-        """
-        ai_wards = [w for w, o in state.owner.items() if o == AI]
-        neutral_wards = [w for w, o in state.owner.items() if o == NEUTRAL]
-        player_wards = [w for w, o in state.owner.items() if o == PLAYER]
-
-        # 攻撃可能な区を列挙
-        attackable = []
-        for w in ai_wards:
-            for neighbor in ADJACENCY[w]:
-                if state.owner[neighbor] != AI and state.troops[w] > 1:
-                    attackable.append({"from": w, "to": neighbor, "owner": state.owner[neighbor]})
-
-        if not attackable:
-            return {"action": "pass", "reason": "攻撃可能な区なし"}
-
-        prompt = f"""東京23区の陣取りゲームでAI側の最善手を1つ選んでください。
-
-現在の盤面:
-- AI所有区: {ai_wards}（計{len(ai_wards)}区）
-- プレイヤー所有区: {player_wards}（計{len(player_wards)}区）
-- 中立区: {neutral_wards}（計{len(neutral_wards)}区）
-- AI収入: {state.income.get(AI, 0)}
-
-攻撃可能な選択肢:
-{attackable}
-
-各区のスタッツ（ATK/DEF/SPD/INC/REC 各1〜10）:
-{json_snippet(state.stats, attackable)}
-
-戦略的に最善の1手を以下のJSON形式のみで返してください:
-{{"action": "attack", "from": "XX区", "to": "YY区", "reason": "理由を20文字以内"}}
-または
-{{"action": "reinforce", "ward": "XX区", "reason": "理由を20文字以内"}}
-"""
-        try:
-            from google.genai import types
-            response = self.client.models.generate_content(
-                model="gemini-3-flash-preview",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.3,
-                    max_output_tokens=100,
-                )
-            )
-            import re, json as _json
-            m = re.search(r'\{.*?\}', response.text, re.DOTALL)
-            if m:
-                return _json.loads(m.group())
-        except Exception as e:
-            print(f"  [AI] Gemini決定失敗: {e}")
-
-        # フォールバック: 最も弱い隣接区を攻撃
-        best = min(attackable, key=lambda x: state.troops[x["to"]])
-        return {"action": "attack", "from": best["from"], "to": best["to"], "reason": "兵力最小を狙う"}
-
-
-def json_snippet(stats: dict, attackable: list) -> str:
-    """攻撃対象の区のスタッツだけ抜粋"""
-    import json
-    wards = set()
-    for a in attackable:
-        wards.add(a["from"])
-        wards.add(a["to"])
-    return json.dumps({w: stats.get(w, {}) for w in wards}, ensure_ascii=False)

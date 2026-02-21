@@ -6,7 +6,7 @@
 - Gemini Maps Tool でPOIからゲームスタッツを計算
 """
 
-import os, json
+import json
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -69,18 +69,13 @@ STAT_LABELS = {
     "INC": "収入",     # ビジネス・オフィス密度
     "REC": "回復力",   # 公園・緑地密度
 }
-POI_QUERIES = {
-    "ATK": "飲食店 商業施設 ショッピングモール",
-    "DEF": "病院 診療所 警察署 消防署",
-    "SPD": "駅 バスターミナル 交通",
-    "INC": "オフィス ビジネス 企業",
-    "REC": "公園 緑地 神社 庭園",
-}
 
 CACHE_FILE = Path(__file__).parent / "ward_stats_cache.json"
 
+GEMINI_MODEL = "gemini-3-flash-preview"
 
-def fetch_ward_stats_from_gemini(ward_name: str, client) -> dict:
+
+def fetch_ward_stats_from_gemini(ward_name: str, client) -> dict | None:
     """
     Gemini 3 Flash の東京知識でスタッツを計算する（高速・安定）
     Maps Tool はゲームプレイ中のイベント生成に使用
@@ -102,7 +97,7 @@ JSON形式のみで返してください:
 
     try:
         response = client.models.generate_content(
-            model="gemini-3-flash-preview",
+            model=GEMINI_MODEL,
             contents=query,
             config=types.GenerateContentConfig(temperature=0.1, max_output_tokens=2048)
         )
@@ -153,7 +148,6 @@ def load_or_fetch_stats(client=None) -> dict[str, dict]:
     print("  [stats] Gemini Maps で23区スタッツを取得中...")
     stats = {}
     for ward in WARDS:
-        coords = WARD_LATLNG[ward]
         print(f"    {ward}...", end="", flush=True)
         result = fetch_ward_stats_from_gemini(ward, client)
         if result:

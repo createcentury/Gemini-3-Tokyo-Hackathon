@@ -9,15 +9,19 @@ Places API (New) + Routes API で実際の東京データを取得し、
   - Routes API: 隣接区間の実際の所要時間（渋滞考慮）
 """
 
-import os, json, time, asyncio
+import os
+import json
+import time
 from pathlib import Path
-from typing import NamedTuple
 import urllib.request
 import urllib.parse
 
 from ward_data import WARDS, WARD_LATLNG, ADJACENCY
 
-MAPS_API_KEY = os.getenv("MAPS_API_KEY", "__GMAPS_API_KEY__")
+MAPS_API_KEY = os.getenv("MAPS_API_KEY", "")
+if not MAPS_API_KEY:
+    import warnings
+    warnings.warn("MAPS_API_KEY が設定されていません。.env ファイルを確認してください。", stacklevel=1)
 CACHE_FILE   = Path(__file__).parent / "ward_stats_cache.json"
 ROUTE_CACHE  = Path(__file__).parent / "route_times_cache.json"
 
@@ -68,8 +72,10 @@ def fetch_poi_count(lat: float, lng: float, types: list[str], max_count: int = 2
 
 def count_to_stat(count: int, max_count: int = 20) -> int:
     """POI数を 1〜10 のスタッツに変換"""
-    if count == 0:   return 1
-    if count >= 18:  return 10
+    if count == 0:
+        return 1
+    if count >= 18:
+        return 10
     return max(1, min(10, round(count / max_count * 10)))
 
 
@@ -119,10 +125,14 @@ def duration_to_movement_cost(seconds: int) -> int:
     """所要時間(秒) → ゲームの移動コスト (1〜5)"""
     # 5分以内=1、10分=2、15分=3、20分=4、25分超=5
     minutes = seconds / 60
-    if minutes <= 5:   return 1
-    if minutes <= 10:  return 2
-    if minutes <= 15:  return 3
-    if minutes <= 20:  return 4
+    if minutes <= 5:
+        return 1
+    if minutes <= 10:
+        return 2
+    if minutes <= 15:
+        return 3
+    if minutes <= 20:
+        return 4
     return 5
 
 
@@ -141,7 +151,7 @@ def fetch_all_stats(force: bool = False) -> dict:
             print(f"[stats] キャッシュ使用: {CACHE_FILE}")
             return cached
 
-    print(f"[stats] Places API で23区のリアルPOIデータを取得中...")
+    print("[stats] Places API で23区のリアルPOIデータを取得中...")
     stats = {}
     for i, ward in enumerate(WARDS, 1):
         print(f"  [{i:02d}/23] {ward}...", end="", flush=True)
@@ -166,7 +176,7 @@ def fetch_all_routes(force: bool = False) -> dict:
         print(f"[routes] キャッシュ使用: {ROUTE_CACHE}")
         return cached
 
-    print(f"[routes] Routes API で隣接区間の所要時間を取得中...")
+    print("[routes] Routes API で隣接区間の所要時間を取得中...")
     routes = {}
     edges = set()
     for ward, neighbors in ADJACENCY.items():
